@@ -1,0 +1,86 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ASG1 - WebGL Paint</title>
+</head>
+<body onload="main()">
+
+  <canvas id="webgl" width="400" height="400">
+    Please use a browser that supports "canvas"
+  </canvas>
+
+  <br>
+  <label>R: <input type="range" id="red" min="0" max="100" value="100"></label>
+  <label>G: <input type="range" id="green" min="0" max="100" value="0"></label>
+  <label>B: <input type="range" id="blue" min="0" max="100" value="0"></label>
+  <br>
+  <label>Size: <input type="range" id="size" min="1" max="50" value="10"></label>
+  <br>
+  <button onclick="clearCanvas()">Clear Canvas</button>
+  <br><br>
+  <label>Drawing Mode: </label>
+
+  <button onclick="g_selectedShape='point'">Point</button>
+  <button onclick="g_selectedShape='triangle'">Triangle</button>
+  <button onclick="g_selectedShape='circle'">Circle</button>
+  <br><br>
+  <label>Segments: <input type="range" id="segments" min="3" max="64" value="12"></label>
+  <br>
+  <button onclick="drawPicture()">Draw Picture</button>
+  
+  <script src="lib/webgl-utils.js"></script>
+  <script src="lib/webgl-debug.js"></script>
+  <script src="lib/cuon-utils.js"></script>
+  <script src="Point.js"></script>
+  <script src="Triangle.js"></script>
+  <script src="Circle.js"></script>
+  <script src="asg1.js"></script>
+
+</body>
+</html> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ASG1 - WebGL Paint</title>
+</head>
+<body onload="main()">
+
+  <canvas id="webgl" width="400" height="400">
+    Please use a browser that supports "canvas"
+  </canvas>
+
+  <br><br>
+  <button onclick="clearCanvas()">Clear Canvas</button>
+
+  <br><br>
+  <b>Drawing Mode:</b><br>
+  <button onclick="g_selectedShape='point'">Squares</button>
+  <button onclick="g_selectedShape='triangle'">Triangles</button>
+  <button onclick="g_selectedShape='circle'">Circles</button>
+  <button onclick="drawPicture()">Draw Picture</button>
+  
+  <br><br>
+  <b>Shape Color:</b><br>
+  Red <input type="range" id="red" min="0" max="100" value="100">
+  Green <input type="range" id="green" min="0" max="100" value="0">
+  Blue <input type="range" id="blue" min="0" max="100" value="0">
+
+  <br><br>
+  <b>Shape Size:</b>
+  <input type="range" id="size" min="1" max="50" value="10">
+  &nbsp;&nbsp;&nbsp;
+  <b>(Circles) Segment Count:</b>
+  <input type="range" id="segments" min="3" max="64" value="12">
+
+  <script src="lib/webgl-utils.js"></script>
+  <script src="lib/webgl-debug.js"></script>
+  <script src="lib/cuon-utils.js"></script>
+  <script src="Point.js"></script>
+  <script src="Triangle.js"></script>
+  <script src="Circle.js"></script>
+  <script src="asg1.js"></script>
+
+</body>
+</html>
