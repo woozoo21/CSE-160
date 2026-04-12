@@ -135,132 +135,91 @@ function drawRect(x1, y1, x2, y2, color) {
 function drawPicture() {
   g_shapesList = [];
 
-  function addTri(a, b, c, color) {
+  function addTri(x1,y1, x2,y2, x3,y3, r,g,b) {
     var t = new Triangle();
-    t.color = color;
+    t.color = [r, g, b, 1.0];
     t.size = 1;
     t.position = [0, 0];
-    t.vertices = [
-      a[0], a[1],
-      b[0], b[1],
-      c[0], c[1]
-    ];
+    t.vertices = [x1,y1, x2,y2, x3,y3];
     g_shapesList.push(t);
   }
 
-  function addQuad(a, b, c, d, color) {
-    addTri(a, b, c, color);
-    addTri(a, c, d, color);
-  }
+  // BACKGROUND - warm sunset yellow
+  addTri(-1.0,-1.0,  1.0,-1.0,  1.0, 1.0,   1.0, 0.85, 0.4);
+  addTri(-1.0,-1.0,  1.0, 1.0, -1.0, 1.0,   1.0, 0.85, 0.4);
+  // --- WATER (blue) ---
+  addTri(-1.0,-1.0,  1.0,-1.0,  1.0,-0.6,   0.3,0.7,1.0);
+  addTri(-1.0,-1.0,  1.0,-0.6, -1.0,-0.6,   0.3,0.7,1.0);
+  addTri(-1.0,-0.6, -0.5,-0.7,  0.0,-0.6,   0.2,0.6,0.9);
+  addTri( 0.0,-0.6,  0.5,-0.65, 1.0,-0.6,   0.2,0.6,0.9);
 
-  var WHITE = [1.0, 1.0, 1.0, 1.0];
-  var WATER = [0.30, 0.72, 0.95, 1.0];
-  var SWAN = [0.84, 0.84, 0.86, 1.0];
-  var SWAN_DARK = [0.73, 0.73, 0.78, 1.0];
-  var BEAK_DARK = [0.12, 0.12, 0.12, 1.0];
-  var BEAK_ORANGE = [1.00, 0.48, 0.12, 1.0];
+  // // --- BODY (gray) ---
+  // addTri(-0.875,0.0,  -0.75,0.125,  -0.625,0.0,    0.9,0.9,0.9);
+  // addTri(-0.875,0.0,  -0.625,0.0,   -0.5,0.0,      0.9,0.9,0.9);
+  // addTri(-0.875,0.0,  -0.5,0.0,      0.25,-0.75,   0.9,0.9,0.9);
+  // addTri(-0.875,0.0,   0.25,-0.75,  -0.75,-0.75,   0.9,0.9,0.9);
+  // addTri(-0.875,0.0,  -0.75,-0.75,  -0.625,-0.625, 0.9,0.9,0.9);
+  // addTri(-0.875,0.0,  -0.625,-0.625,-0.75,-0.5,    0.9,0.9,0.9);
+  // addTri(-0.875,0.0,  -0.75,-0.5,   -0.75,-0.125,  0.9,0.9,0.9);
+  
+  // --- BODY (white) ---
+  addTri(-0.875,0.0,  -0.75,0.125,  -0.625,0.0,    1.0,1.0,1.0);
+  addTri(-0.875,0.0,  -0.625,0.0,   -0.5,0.0,      1.0,1.0,1.0);
+  addTri(-0.875,0.0,  -0.5,0.0,      0.25,-0.75,   1.0,1.0,1.0);
+  addTri(-0.875,0.0,   0.25,-0.75,  -0.75,-0.75,   1.0,1.0,1.0);
+  addTri(-0.875,0.0,  -0.75,-0.75,  -0.625,-0.625, 1.0,1.0,1.0);
+  addTri(-0.875,0.0,  -0.625,-0.625,-0.75,-0.5,    1.0,1.0,1.0);
+  addTri(-0.875,0.0,  -0.75,-0.5,   -0.75,-0.125,  1.0,1.0,1.0);
+  
+  // LOWER S BODY
+  addTri(-0.5,0.25,  -0.375,0.25,  0.125,-0.25,   0.8,0.8,0.8);
+  addTri(-0.5,0.25,   0.125,-0.25,  0.25,-0.25,   0.8,0.8,0.8);
+  addTri(-0.5,0.25,   0.25,-0.25,   0.25,-0.75,   0.8,0.8,0.8);
+  addTri(-0.5,0.25,   0.25,-0.75,  -0.5,  0.0,    0.8,0.8,0.8);
+  
+  // LOWER S CURVE
+  addTri(0.5,-0.375,  0.25,-0.25,   0.375,-0.125,  0.8,0.8,0.8);
+  addTri(0.5,-0.375,  0.375,-0.125, 0.375, 0.0,    0.8,0.8,0.8);
+  addTri(0.5,-0.375,  0.375, 0.0,   0.625, 0.0,    0.8,0.8,0.8);
+  addTri(0.5,-0.375,  0.625, 0.0,   0.75,-0.125,   0.8,0.8,0.8);
+  addTri(0.5,-0.375,  0.75,-0.125,  0.75,-0.5,     0.8,0.8,0.8);
+  addTri(0.5,-0.375,  0.75,-0.5,    0.5,-0.75,     0.8,0.8,0.8);
+  addTri(0.5,-0.375,  0.5,-0.75,    0.25,-0.75,    0.8,0.8,0.8);
+  addTri(0.5,-0.375,  0.25,-0.75,   0.25,-0.25,    0.8,0.8,0.8);
+  
+  // MIDDLE S CONNECTOR
+  addTri(0.375,0.2,  0.375,0.0,   0.0,0.375,    0.8,0.8,0.8);
+  addTri(0.375,0.2,  0.0,0.375,   0.125,0.375,  0.8,0.8,0.8);
+  addTri(0.375,0.2,  0.125,0.375, 0.375,0.125,  0.8,0.8,0.8);
+  addTri(0.375,0.2,  0.375,0.125, 0.5,0.125,    0.8,0.8,0.8);
+  addTri(0.375,0.2,  0.5,0.125,   0.625,0.0,    0.8,0.8,0.8);
+  addTri(0.375,0.2,  0.625,0.0,   0.375,0.0,    0.8,0.8,0.8);
 
-  // Background
-  addQuad([-1.0, -1.0], [-1.0, 1.0], [1.0, 1.0], [1.0, -1.0], WHITE);
+  // UPPER S CURVE
+  addTri(0.3,0.625,  0.0,0.375,    0.0,0.625,    0.8,0.8,0.8);
+  addTri(0.3,0.625,  0.0,0.625,    0.25,0.875,   0.8,0.8,0.8);
+  addTri(0.3,0.625,  0.25,0.875,   0.5,0.875,    0.8,0.8,0.8);
+  addTri(0.3,0.625,  0.5,0.875,    0.625,0.75,   0.8,0.8,0.8);
+  addTri(0.3,0.625,  0.625,0.75,   0.625,0.625,  0.8,0.8,0.8);
+  addTri(0.3,0.625,  0.625,0.625,  0.25,0.625,   0.8,0.8,0.8);
+  addTri(0.3,0.625,  0.25,0.625,   0.125,0.5,    0.8,0.8,0.8);
+  addTri(0.3,0.625,  0.125,0.5,    0.125,0.375,  0.8,0.8,0.8);
+  addTri(0.3,0.625,  0.125,0.375,  0.0,0.375,    0.8,0.8,0.8);
+  
+  // BLACK MOUTH
+  addTri(0.375,0.625,  0.625,0.625,  0.625,0.375,  0.1,0.1,0.1);
+  addTri(0.375,0.625,  0.625,0.375,  0.5,0.375,    0.1,0.1,0.1);
+  addTri(0.375,0.625,  0.5,0.375,    0.375,0.5,    0.1,0.1,0.1);
 
-  // Water band: flatter center, raised edges like the sketch.
-  addTri([-1.0, -1.0], [-1.0, -0.53], [-0.62, -0.56], WATER);
-  addTri([-1.0, -1.0], [-0.62, -0.56], [-0.40, -0.72], WATER);
-  addTri([-1.0, -1.0], [-0.40, -0.72], [0.38, -0.68], WATER);
-  addTri([-1.0, -1.0], [0.38, -0.68], [0.62, -0.74], WATER);
-  addTri([-1.0, -1.0], [0.62, -0.74], [1.0, -0.54], WATER);
-  addTri([-1.0, -1.0], [1.0, -0.54], [1.0, -1.0], WATER);
-
-  // Tail flap on the left.
-  var tailTip = [-0.82, 0.03];
-  var tailTop = [-0.70, 0.16];
-  var tailBase = [-0.58, 0.02];
-  var tailBottom = [-0.67, -0.11];
-  addTri(tailTip, tailTop, tailBase, SWAN);
-  addTri(tailTip, tailBase, tailBottom, SWAN);
-
-  // Small connector from tail to body shoulder.
-  addQuad([-0.58, 0.02], [-0.48, 0.02], [-0.48, -0.02], [-0.58, -0.02], SWAN);
-
-  // Main body silhouette: intentionally large and right-heavy.
-  var bodyCenter = [0.08, -0.28];
-  var shoulderTop = [-0.48, 0.28];
-  var leftMid = [-0.48, 0.02];
-  var leftLower = [-0.32, -0.30];
-  var chestLow = [-0.06, -0.62];
-  var bellyLow = [0.22, -0.92];
-  var rearFoot = [0.56, -0.86];
-  var rearLow = [0.72, -0.60];
-  var rearMid = [0.72, -0.28];
-  var rearUpper = [0.58, -0.08];
-  var rearTop = [0.42, 0.02];
-  var bodyTop = [-0.06, 0.04];
-  addTri(bodyCenter, shoulderTop, leftMid, SWAN);
-  addTri(bodyCenter, leftMid, leftLower, SWAN);
-  addTri(bodyCenter, leftLower, chestLow, SWAN);
-  addTri(bodyCenter, chestLow, bellyLow, SWAN);
-  addTri(bodyCenter, bellyLow, rearFoot, SWAN);
-  addTri(bodyCenter, rearFoot, rearLow, SWAN);
-  addTri(bodyCenter, rearLow, rearMid, SWAN);
-  addTri(bodyCenter, rearMid, rearUpper, SWAN_DARK);
-  addTri(bodyCenter, rearUpper, rearTop, SWAN_DARK);
-  addTri(bodyCenter, rearTop, bodyTop, SWAN);
-  addTri(bodyCenter, bodyTop, shoulderTop, SWAN);
-
-  // Neck ribbon: thicker at the base and bending up into the head.
-  var neckBaseOuter = [0.03, 0.05];
-  var neckMidOuter = [0.11, 0.30];
-  var neckUpperOuter = [0.18, 0.56];
-  var neckHeadOuter = [0.28, 0.70];
-  var neckBaseInner = [0.14, -0.01];
-  var neckMidInner = [0.24, 0.18];
-  var neckUpperInner = [0.34, 0.40];
-  var neckHeadInner = [0.40, 0.38];
-  addQuad(neckBaseOuter, neckMidOuter, neckMidInner, neckBaseInner, SWAN_DARK);
-  addQuad(neckMidOuter, neckUpperOuter, neckUpperInner, neckMidInner, SWAN_DARK);
-  addQuad(neckUpperOuter, neckHeadOuter, neckHeadInner, neckUpperInner, SWAN_DARK);
-
-  // Head: larger, blockier, and closer to the sketch proportions.
-  var headBaseLeft = [0.30, 0.34];
-  var headTopLeft = [0.36, 0.82];
-  var headTopMid = [0.62, 0.82];
-  var headTopRight = [0.78, 0.68];
-  var headRight = [0.80, 0.32];
-  var headBottom = [0.54, 0.32];
-  var headLowerLeft = [0.36, 0.32];
-  addTri(headBaseLeft, headTopLeft, headTopMid, SWAN);
-  addTri(headBaseLeft, headTopMid, headTopRight, SWAN);
-  addTri(headBaseLeft, headTopRight, headRight, SWAN);
-  addTri(headBaseLeft, headRight, headBottom, SWAN_DARK);
-  addTri(headBaseLeft, headBottom, headLowerLeft, SWAN);
-
-  // Large inner white cutout under the neck and inside the body.
-  var cutBase = [0.10, 0.02];
-  var cutNeck = [0.22, 0.24];
-  var cutTop = [0.40, 0.36];
-  var cutFar = [0.58, 0.32];
-  var cutMid = [0.48, 0.10];
-  var cutLow = [0.26, -0.08];
-  addTri(cutBase, cutNeck, cutTop, WHITE);
-  addTri(cutBase, cutTop, cutFar, WHITE);
-  addTri(cutBase, cutFar, cutMid, WHITE);
-  addTri(cutBase, cutMid, cutLow, WHITE);
-
-  // Beak: dark upper beak and orange lower beak.
-  var beakUpperLeft = [0.52, 0.32];
-  var beakUpperRight = [0.66, 0.32];
-  var beakUpperTip = [0.74, 0.22];
-  var beakUpperLow = [0.60, 0.14];
-  var beakLowerLeft = [0.50, 0.14];
-  var beakLowerRight = [0.66, 0.14];
-  var beakLowerTip = [0.82, -0.02];
-  var beakLowerLow = [0.60, -0.05];
-  addTri(beakUpperLeft, beakUpperRight, beakUpperTip, BEAK_DARK);
-  addTri(beakUpperLeft, beakUpperTip, beakUpperLow, BEAK_DARK);
-  addTri(beakLowerLeft, beakLowerRight, beakLowerTip, BEAK_ORANGE);
-  addTri(beakLowerLeft, beakLowerTip, beakLowerLow, BEAK_ORANGE);
-
+  // WHITE SQUARE inside mouth
+  addTri(0.5,0.625,  0.625,0.625,  0.625,0.5,    1.0,1.0,1.0);
+  addTri(0.5,0.625,  0.625,0.5,    0.5,0.5,      1.0,1.0,1.0);
+  // ORANGE BEAK
+  addTri(0.375,0.5,  0.5,0.375,   0.625,0.375,  1.0,0.5,0.0);
+  addTri(0.375,0.5,  0.625,0.375, 0.625,0.25,   1.0,0.5,0.0);
+  addTri(0.375,0.5,  0.625,0.25,  0.5,0.25,     1.0,0.5,0.0);
+  addTri(0.375,0.5,  0.5,0.25,    0.375,0.25,   1.0,0.5,0.0);
+  // BEAK BACKGROUND - match sunset
+  addTri(0.5,0.25,  0.5,0.375,  0.625,0.25,  1.0, 0.85, 0.4);
   renderAllShapes();
 }
-
-
