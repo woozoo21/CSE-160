@@ -7,17 +7,21 @@ var u_FragColor;
 // var g_points = [];
 // var g_colors = [];
 
-var u_PointSize;
+// var u_PointSize;
 // var g_sizes = [];
 var g_shapesList = [];
-var g_selectedShape = 'point';
+// var g_selectedShape = 'point';
+var g_selectedShape = 'square';
+
+var g_rainbowMode = false;
+var g_hue = 0;
 
 var VSHADER_SOURCE =
   'attribute vec4 a_Position;\n' +
-  'uniform float u_PointSize;\n' +
+  // 'uniform float u_PointSize;\n' +
   'void main() {\n' +
   '  gl_Position = a_Position;\n' +
-  '  gl_PointSize = u_PointSize;\n' +
+  // '  gl_PointSize = u_PointSize;\n' +
   '}\n';
 
 var FSHADER_SOURCE =
@@ -27,7 +31,6 @@ var FSHADER_SOURCE =
   '  gl_FragColor = u_FragColor;\n' +
   '}\n';
 
-// ---- MAIN ----
 function main() {
   setupWebGL();
   connectVariablesToGLSL();
@@ -45,7 +48,6 @@ function main() {
   gl.clear(gl.COLOR_BUFFER_BIT);
 }
 
-// ---- 1. Setup WebGL ----
 function setupWebGL() {
   canvas = document.getElementById('webgl');
   gl = getWebGLContext(canvas, { preserveDrawingBuffer: true });
@@ -55,7 +57,6 @@ function setupWebGL() {
   }
 }
 
-// ---- 2. Connect JS variables to GLSL ----
 function connectVariablesToGLSL() {
   if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
     console.log('Failed to initialize shaders');
@@ -63,25 +64,32 @@ function connectVariablesToGLSL() {
   }
   a_Position = gl.getAttribLocation(gl.program, 'a_Position');
   u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
-  u_PointSize = gl.getUniformLocation(gl.program, 'u_PointSize');
+  // u_PointSize = gl.getUniformLocation(gl.program, 'u_PointSize');
 
 }
-
-// ---- 3. Handle click ----
 function click(ev) {
   var rect = canvas.getBoundingClientRect();
   var x = ((ev.clientX - rect.left) - canvas.width/2) / (canvas.width/2);
   var y = (canvas.height/2 - (ev.clientY - rect.top)) / (canvas.height/2);
 
-  var r = document.getElementById('red').value / 100;
-  var g = document.getElementById('green').value / 100;
-  var b = document.getElementById('blue').value / 100;
   var size = parseFloat(document.getElementById('size').value);
   var segments = parseInt(document.getElementById('segments').value);
 
+  var r,g,b;
   var shape;
-  if (g_selectedShape == 'point') {
-    shape = new Point();
+  if (g_rainbowMode) {
+    g_hue += 5;
+    var rgb = hueToRGB(g_hue);
+    var r = rgb[0], g = rgb[1], b = rgb[2];
+  } else {
+    var r = document.getElementById('red').value / 100;
+    var g = document.getElementById('green').value / 100;
+    var b = document.getElementById('blue').value / 100;
+  }
+  // if (g_selectedShape == 'point') {
+  //   shape = new Point();
+  if (g_selectedShape == 'square') {
+    shape = new Square();
   } else if (g_selectedShape == 'triangle') {
     shape = new Triangle();
   } else if (g_selectedShape == 'circle') {
@@ -89,6 +97,7 @@ function click(ev) {
     shape.segments = segments;
   }
 
+  console.log('selected shape:', g_selectedShape);
   shape.position = [x, y];
   shape.color = [r, g, b, 1.0];
   shape.size = size;
@@ -97,7 +106,6 @@ function click(ev) {
   renderAllShapes();
 }
 
-// ---- 4. Render all shapes ----
 function renderAllShapes() {
   gl.clear(gl.COLOR_BUFFER_BIT);
   for (var i = 0; i < g_shapesList.length; i++) {
@@ -144,10 +152,10 @@ function drawPicture() {
     g_shapesList.push(t);
   }
 
-  // BACKGROUND - warm sunset yellow
+  // bckgrd sunset yellow
   addTri(-1.0,-1.0,  1.0,-1.0,  1.0, 1.0,   1.0, 0.85, 0.4);
   addTri(-1.0,-1.0,  1.0, 1.0, -1.0, 1.0,   1.0, 0.85, 0.4);
-  // --- WATER (blue) ---
+  // water blue
   addTri(-1.0,-1.0,  1.0,-1.0,  1.0,-0.6,   0.3,0.7,1.0);
   addTri(-1.0,-1.0,  1.0,-0.6, -1.0,-0.6,   0.3,0.7,1.0);
   addTri(-1.0,-0.6, -0.5,-0.7,  0.0,-0.6,   0.2,0.6,0.9);
@@ -162,22 +170,22 @@ function drawPicture() {
   // addTri(-0.875,0.0,  -0.625,-0.625,-0.75,-0.5,    0.9,0.9,0.9);
   // addTri(-0.875,0.0,  -0.75,-0.5,   -0.75,-0.125,  0.9,0.9,0.9);
   
-  // --- BODY (white) ---
+  // body white
   addTri(-0.875,0.0,  -0.75,0.125,  -0.625,0.0,    1.0,1.0,1.0);
   addTri(-0.875,0.0,  -0.625,0.0,   -0.5,0.0,      1.0,1.0,1.0);
-  addTri(-0.875,0.0,  -0.5,0.0,      0.25,-0.75,   1.0,1.0,1.0);
-  addTri(-0.875,0.0,   0.25,-0.75,  -0.75,-0.75,   1.0,1.0,1.0);
-  addTri(-0.875,0.0,  -0.75,-0.75,  -0.625,-0.625, 1.0,1.0,1.0);
-  addTri(-0.875,0.0,  -0.625,-0.625,-0.75,-0.5,    1.0,1.0,1.0);
-  addTri(-0.875,0.0,  -0.75,-0.5,   -0.75,-0.125,  1.0,1.0,1.0);
-  
-  // LOWER S BODY
+
+  // bottom left corner shape
+  addTri(-0.75,-0.125,  -0.75,-0.5,   -0.5,-0.75,  1.0,1.0,1.0);
+  addTri(-0.75,-0.125,  -0.5,-0.75,    0.25,-0.75,  1.0,1.0,1.0);
+  addTri(-0.75,-0.125,   0.25,-0.75,  -0.5,  0.0,   1.0,1.0,1.0);
+  addTri(-0.875,0.0,    -0.75,-0.125, -0.5,  0.0,   1.0,1.0,1.0);
+
+  // lower s curve
   addTri(-0.5,0.25,  -0.375,0.25,  0.125,-0.25,   0.8,0.8,0.8);
   addTri(-0.5,0.25,   0.125,-0.25,  0.25,-0.25,   0.8,0.8,0.8);
   addTri(-0.5,0.25,   0.25,-0.25,   0.25,-0.75,   0.8,0.8,0.8);
   addTri(-0.5,0.25,   0.25,-0.75,  -0.5,  0.0,    0.8,0.8,0.8);
   
-  // LOWER S CURVE
   addTri(0.5,-0.375,  0.25,-0.25,   0.375,-0.125,  0.8,0.8,0.8);
   addTri(0.5,-0.375,  0.375,-0.125, 0.375, 0.0,    0.8,0.8,0.8);
   addTri(0.5,-0.375,  0.375, 0.0,   0.625, 0.0,    0.8,0.8,0.8);
@@ -187,15 +195,19 @@ function drawPicture() {
   addTri(0.5,-0.375,  0.5,-0.75,    0.25,-0.75,    0.8,0.8,0.8);
   addTri(0.5,-0.375,  0.25,-0.75,   0.25,-0.25,    0.8,0.8,0.8);
   
-  // MIDDLE S CONNECTOR
+  // mid s curve
   addTri(0.375,0.2,  0.375,0.0,   0.0,0.375,    0.8,0.8,0.8);
   addTri(0.375,0.2,  0.0,0.375,   0.125,0.375,  0.8,0.8,0.8);
   addTri(0.375,0.2,  0.125,0.375, 0.375,0.125,  0.8,0.8,0.8);
   addTri(0.375,0.2,  0.375,0.125, 0.5,0.125,    0.8,0.8,0.8);
   addTri(0.375,0.2,  0.5,0.125,   0.625,0.0,    0.8,0.8,0.8);
   addTri(0.375,0.2,  0.625,0.0,   0.375,0.0,    0.8,0.8,0.8);
+  
+  addTri(0.375,0.0,   0.0,0.375,  0.0,0.5,     0.8,0.8,0.8);
+  addTri(0.375,0.0,   0.0,0.5,    0.375,0.125,  0.8,0.8,0.8);
+  addTri(0.375,0.125, 0.0,0.5,    0.5,0.125,    0.8,0.8,0.8);
 
-  // UPPER S CURVE
+  // upper s curve
   addTri(0.3,0.625,  0.0,0.375,    0.0,0.625,    0.8,0.8,0.8);
   addTri(0.3,0.625,  0.0,0.625,    0.25,0.875,   0.8,0.8,0.8);
   addTri(0.3,0.625,  0.25,0.875,   0.5,0.875,    0.8,0.8,0.8);
@@ -206,20 +218,39 @@ function drawPicture() {
   addTri(0.3,0.625,  0.125,0.5,    0.125,0.375,  0.8,0.8,0.8);
   addTri(0.3,0.625,  0.125,0.375,  0.0,0.375,    0.8,0.8,0.8);
   
-  // BLACK MOUTH
+  // black part
   addTri(0.375,0.625,  0.625,0.625,  0.625,0.375,  0.1,0.1,0.1);
   addTri(0.375,0.625,  0.625,0.375,  0.5,0.375,    0.1,0.1,0.1);
   addTri(0.375,0.625,  0.5,0.375,    0.375,0.5,    0.1,0.1,0.1);
 
-  // WHITE SQUARE inside mouth
+  // eyes? white part
   addTri(0.5,0.625,  0.625,0.625,  0.625,0.5,    1.0,1.0,1.0);
   addTri(0.5,0.625,  0.625,0.5,    0.5,0.5,      1.0,1.0,1.0);
-  // ORANGE BEAK
+  
+  // orange beak R
   addTri(0.375,0.5,  0.5,0.375,   0.625,0.375,  1.0,0.5,0.0);
   addTri(0.375,0.5,  0.625,0.375, 0.625,0.25,   1.0,0.5,0.0);
   addTri(0.375,0.5,  0.625,0.25,  0.5,0.25,     1.0,0.5,0.0);
   addTri(0.375,0.5,  0.5,0.25,    0.375,0.25,   1.0,0.5,0.0);
-  // BEAK BACKGROUND - match sunset
+  
+  // beak triangle between
   addTri(0.5,0.25,  0.5,0.375,  0.625,0.25,  1.0, 0.85, 0.4);
   renderAllShapes();
+}
+
+// for rainbow mode
+function hueToRGB(h) {
+  h = h % 360;
+  var s = 1, l = 0.5;
+  var c = 1 - Math.abs(2*l - 1);
+  var x = c * (1 - Math.abs((h/60) % 2 - 1));
+  var m = l - c/2;
+  var r,g,b;
+  if(h < 60)      { r=c; g=x; b=0; }
+  else if(h < 120){ r=x; g=c; b=0; }
+  else if(h < 180){ r=0; g=c; b=x; }
+  else if(h < 240){ r=0; g=x; b=c; }
+  else if(h < 300){ r=x; g=0; b=c; }
+  else            { r=c; g=0; b=x; }
+  return [r+m, g+m, b+m];
 }
