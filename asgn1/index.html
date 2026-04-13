@@ -25,9 +25,20 @@
 
   <br><br>
   <b>Shape Color:</b><br>
-  Red <input type="range" id="red" min="0" max="100" value="100">
+  <!-- Red <input type="range" id="red" min="0" max="100" value="100">
   Green <input type="range" id="green" min="0" max="100" value="0">
-  Blue <input type="range" id="blue" min="0" max="100" value="0">
+  Blue <input type="range" id="blue" min="0" max="100" value="0"> -->
+  Red <input type="range" id="red" min="0" max="100" value="100" oninput="updateColor()">
+  Green <input type="range" id="green" min="0" max="100" value="0" oninput="updateColor()">
+  Blue <input type="range" id="blue" min="0" max="100" value="0" oninput="updateColor()">
+  
+  <br>
+  <b>Color Preview:</b><br>
+  <div id="colorPreview" style="width:60px; height:40px; display:inline-block; border:1px solid white; vertical-align:middle;"></div>
+  <span style="color:white"> # </span>
+  <input type="text" id="hexDisplay" value="FF0000" style="width:70px; font-size:14px;">
+  <button onclick="applyHex()">Apply Hex</button>
+  
   <br>
   Shape Size: <input type="range" id="size" min="1" max="50" value="10">
   (Circles) Segment Count: <input type="range" id="segments" min="3" max="64" value="12">

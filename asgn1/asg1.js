@@ -46,6 +46,7 @@ function main() {
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
+  updateColor();
 }
 
 function setupWebGL() {
@@ -265,3 +266,40 @@ function toggleRainbow() {
     btn.textContent = 'Rainbow Mode: OFF';
   }
 }
+
+// for hexslider
+function updateColor() {
+  if (g_rainbowMode) return; // don't update when rainbow is on
+  
+  var r = Math.round(document.getElementById('red').value * 2.55);
+  var g = Math.round(document.getElementById('green').value * 2.55);
+  var b = Math.round(document.getElementById('blue').value * 2.55);
+
+  // update hex display
+  var hex = r.toString(16).padStart(2,'0') + 
+            g.toString(16).padStart(2,'0') + 
+            b.toString(16).padStart(2,'0');
+  document.getElementById('hexDisplay').value = hex.toUpperCase();
+
+  // update color preview box
+  document.getElementById('colorPreview').style.background = '#' + hex;
+}
+
+function applyHex() {
+  var hex = document.getElementById('hexDisplay').value.replace('#','');
+  if (hex.length != 6) { alert('Enter a valid 6 digit hex code!'); return; }
+
+  var r = parseInt(hex.substring(0,2), 16);
+  var g = parseInt(hex.substring(2,4), 16);
+  var b = parseInt(hex.substring(4,6), 16);
+
+  // update sliders
+  document.getElementById('red').value   = Math.round(r / 2.55);
+  document.getElementById('green').value = Math.round(g / 2.55);
+  document.getElementById('blue').value  = Math.round(b / 2.55);
+
+  // update preview
+  document.getElementById('colorPreview').style.background = '#' + hex;
+  document.getElementById('hexDisplay').value = hex.toUpperCase();
+}
+
