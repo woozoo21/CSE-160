@@ -20,7 +20,8 @@
   <button onclick="g_selectedShape='triangle'">Triangles</button>
   <button onclick="g_selectedShape='circle'">Circles</button>
   <button onclick="drawPicture()">Draw Picture</button>
-  <button onclick="g_rainbowMode = !g_rainbowMode">Toggle Rainbow Mode</button>
+  <!-- <button onclick="g_rainbowMode = !g_rainbowMode">Toggle Rainbow Mode</button> -->
+  <button id="rainbowBtn" onclick="toggleRainbow()">Rainbow Mode: OFF</button>
 
   <br><br>
   <b>Shape Color:</b><br>
@@ -42,7 +43,7 @@
 
   <br><br>
   <b>Awesome Features:</b><br>
-  - Rainbow mode: auto cycles through all colors.
+  - Rainbow mode: auto cycles through all colors + shows if its on/off
 
 </body>
 </html>

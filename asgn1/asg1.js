@@ -254,3 +254,14 @@ function hueToRGB(h) {
   else            { r=c; g=0; b=x; }
   return [r+m, g+m, b+m];
 }
+
+// for toggling rainbow mode
+function toggleRainbow() {
+  g_rainbowMode = !g_rainbowMode;
+  var btn = document.getElementById('rainbowBtn');
+  if (g_rainbowMode) {
+    btn.textContent = 'Rainbow Mode: ON';
+  } else {
+    btn.textContent = 'Rainbow Mode: OFF';
+  }
+}
