@@ -12,7 +12,18 @@ Please use a browser that supports "canvas"
 <p id="fps">FPS: --</p>
 
 <p>
-  Camera Angle <input type="range" min="-180" max="180" value="0" class="slider" id="angleSlide"> 
+  Camera Angle <input type="range" min="-180" max="180" value="0" class="slider" id="angleSlide">
+</p>
+<p>
+  Front Leg <input type="range" min="-45" max="45" value="30" class="slider" id="frontLegSlide">
+</p>
+<p>
+  Back Leg <input type="range" min="-45" max="45" value="30" class="slider" id="backLegSlide">
+</p>
+<p>
+  Animation <button id="runBtn">Run</button>
+  <button id="crawlBtn">Crawl</button>
+  <button id="animOffBtn">Stop</button>
 </p>
 
 <script src="lib/webgl-utils.js"></script>

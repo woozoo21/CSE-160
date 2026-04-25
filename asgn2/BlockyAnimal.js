@@ -29,6 +29,12 @@ let g_startTime = performance.now() / 1000.0;
 let g_seconds = performance.now() / 1000.0 - g_startTime;
 let g_lastFrameTime = performance.now();
 
+let g_frontLegAngle = 30;
+let g_backLegAngle = 30;
+let g_crawlPhase = 0;
+let g_animMode = 'none';
+let g_bodyBounce = 0;
+
 function setupWebGL() {
   canvas = document.getElementById('webgl');
   gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
@@ -70,6 +76,52 @@ function addActionsForHtmlUI() {
     g_globalAngle = this.value;
     renderScene();
   });
+
+  document.getElementById('frontLegSlide').addEventListener('input', function() {
+    g_frontLegAngle = parseFloat(this.value);
+    renderScene();
+  });
+
+  document.getElementById('backLegSlide').addEventListener('input', function() {
+    g_backLegAngle = parseFloat(this.value);
+    renderScene();
+  });
+
+  document.getElementById('runBtn').onclick = function() {
+    g_animMode = 'run';
+    tick();
+  };
+
+  document.getElementById('crawlBtn').onclick = function() {
+    g_animMode = 'crawl';
+    tick();
+  };
+
+  document.getElementById('animOffBtn').onclick = function() {
+    g_animMode = 'none';
+  };
+}
+
+function tick() {
+  if (g_animMode === 'none') return;
+  updateAnimationAngles();
+  renderScene();
+  requestAnimationFrame(tick);
+}
+
+function updateAnimationAngles() {
+  var t = performance.now() / 1000.0 - g_startTime;
+  if (g_animMode === 'run') {
+    g_frontLegAngle = 30 + 25 * Math.sin(t * 3);
+    g_backLegAngle  = 30 + 25 * Math.sin(t * 3 + Math.PI);
+    g_crawlPhase    = 0;
+    g_bodyBounce    = -0.04 * Math.sin(t * 3);
+  } else if (g_animMode === 'crawl') {
+    g_frontLegAngle = 30;
+    g_backLegAngle  = 30;
+    g_crawlPhase    = 22 * Math.sin(t * 2);
+    g_bodyBounce    = -0.015 * Math.abs(Math.sin(t * 2));
+  }
 }
 
 function main() {
@@ -82,7 +134,16 @@ function main() {
 }
 
 function renderScene() {
-  var globalRotMat = new Matrix4().rotate(g_globalAngle, 0, 1, 0);
+  var fLAngle  = g_frontLegAngle + g_crawlPhase;
+  var fRAngle  = g_frontLegAngle - g_crawlPhase;
+  var bLAngle  = g_backLegAngle  - g_crawlPhase;
+  var bRAngle  = g_backLegAngle  + g_crawlPhase;
+  var fPawLAng = 0.7 * (fLAngle - 30);
+  var fPawRAng = 0.7 * (fRAngle - 30);
+  var bPawLAng = 0.7 * (bLAngle - 30);
+  var bPawRAng = 0.7 * (bRAngle - 30);
+
+  var globalRotMat = new Matrix4().translate(0, g_bodyBounce, 0).rotate(g_globalAngle, 0, 1, 0);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -240,18 +301,21 @@ function renderScene() {
   eyeRH.matrix.scale(0.02, 0.02, 0.02);
   eyeRH.render();
 
-  // --- FRONT LEFT LEG - splays outward ---
+  // --- FRONT LEFT LEG ---
   var fLegL = new Cube();
   fLegL.color = [0.45, 0.55, 0.65, 1.0];
   fLegL.matrix.translate(-0.28, -0.1, -0.35);
-  fLegL.matrix.rotate(30, 1, 0, 0);
+  fLegL.matrix.rotate(fLAngle, 1, 0, 0);
   fLegL.matrix.scale(0.12, 0.18, 0.12);
   fLegL.render();
 
-  // --- FRONT LEFT PAW ---
+  // --- FRONT LEFT PAW - inherits leg matrix ---
   var fPawL = new Cube();
   fPawL.color = [0.82, 0.63, 0.66, 1.0];
-  fPawL.matrix.translate(-0.3, -0.2, -0.42);
+  fPawL.matrix = new Matrix4(fLegL.matrix);
+  fPawL.matrix.scale(1/0.12, 1/0.18, 1/0.12); // undo leg scale
+  fPawL.matrix.translate(-0.02, -0.05, -0.2);
+  fPawL.matrix.rotate(fPawLAng, 1, 0, 0);
   fPawL.matrix.scale(0.16, 0.05, 0.2);
   fPawL.render();
 
@@ -259,14 +323,17 @@ function renderScene() {
   var fLegR = new Cube();
   fLegR.color = [0.45, 0.55, 0.65, 1.0];
   fLegR.matrix.translate(0.16, -0.1, -0.35);
-  fLegR.matrix.rotate(30, 1, 0, 0);
+  fLegR.matrix.rotate(fRAngle, 1, 0, 0);
   fLegR.matrix.scale(0.12, 0.18, 0.12);
   fLegR.render();
 
   // --- FRONT RIGHT PAW ---
   var fPawR = new Cube();
   fPawR.color = [0.82, 0.63, 0.66, 1.0];
-  fPawR.matrix.translate(0.16, -0.2, -0.42);
+  fPawR.matrix = new Matrix4(fLegR.matrix);
+  fPawR.matrix.scale(1/0.12, 1/0.18, 1/0.12);
+  fPawR.matrix.translate(-0.02, -0.05, -0.2);
+  fPawR.matrix.rotate(fPawRAng, 1, 0, 0);
   fPawR.matrix.scale(0.16, 0.05, 0.2);
   fPawR.render();
 
@@ -274,14 +341,17 @@ function renderScene() {
   var bLegL = new Cube();
   bLegL.color = [0.45, 0.55, 0.65, 1.0];
   bLegL.matrix.translate(-0.28, -0.1, 0.1);
-  bLegL.matrix.rotate(30, 1, 0, 0);
+  bLegL.matrix.rotate(bLAngle, 1, 0, 0);
   bLegL.matrix.scale(0.12, 0.18, 0.14);
   bLegL.render();
 
   // --- BACK LEFT PAW ---
   var bPawL = new Cube();
   bPawL.color = [0.82, 0.63, 0.66, 1.0];
-  bPawL.matrix.translate(-0.3, -0.2, 0.06);
+  bPawL.matrix = new Matrix4(bLegL.matrix);
+  bPawL.matrix.scale(1/0.12, 1/0.18, 1/0.14);
+  bPawL.matrix.translate(-0.02, -0.05, -0.24);
+  bPawL.matrix.rotate(bPawLAng, 1, 0, 0);
   bPawL.matrix.scale(0.16, 0.05, 0.24);
   bPawL.render();
 
@@ -289,14 +359,17 @@ function renderScene() {
   var bLegR = new Cube();
   bLegR.color = [0.45, 0.55, 0.65, 1.0];
   bLegR.matrix.translate(0.16, -0.1, 0.1);
-  bLegR.matrix.rotate(30, 1, 0, 0);
+  bLegR.matrix.rotate(bRAngle, 1, 0, 0);
   bLegR.matrix.scale(0.12, 0.18, 0.14);
   bLegR.render();
 
   // --- BACK RIGHT PAW ---
   var bPawR = new Cube();
   bPawR.color = [0.82, 0.63, 0.66, 1.0];
-  bPawR.matrix.translate(0.16, -0.2, 0.06);
+  bPawR.matrix = new Matrix4(bLegR.matrix);
+  bPawR.matrix.scale(1/0.12, 1/0.18, 1/0.14);
+  bPawR.matrix.translate(-0.02, -0.05, -0.24);
+  bPawR.matrix.rotate(bPawRAng, 1, 0, 0);
   bPawR.matrix.scale(0.16, 0.05, 0.24);
   bPawR.render();
 
