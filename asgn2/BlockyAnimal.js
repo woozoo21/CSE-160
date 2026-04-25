@@ -1,0 +1,328 @@
+// Vertex shader program
+var VSHADER_SOURCE = `
+  attribute vec4 a_Position;
+  uniform mat4 u_ModelMatrix;
+  uniform mat4 u_GlobalRotateMatrix;
+  void main() {
+    gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
+  }`;
+
+// Fragment shader program
+var FSHADER_SOURCE = `
+  precision mediump float;
+  uniform vec4 u_FragColor;
+  void main() {
+    gl_FragColor = u_FragColor;
+  }`;
+
+// Global Variables
+let canvas;
+let gl;
+let a_Position;
+let u_FragColor;
+let u_ModelMatrix;
+let u_GlobalRotateMatrix;
+
+let g_globalAngle = 0;
+
+let g_startTime = performance.now() / 1000.0;
+let g_seconds = performance.now() / 1000.0 - g_startTime;
+let g_lastFrameTime = performance.now();
+
+function setupWebGL() {
+  canvas = document.getElementById('webgl');
+  gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+  if (!gl) {
+    console.log('Failed to get the rendering context for WebGL');
+    return;
+  }
+  gl.enable(gl.DEPTH_TEST);
+}
+
+function connectVariablesToGLSL() {
+  if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
+    console.log('Failed to initialize shaders.');
+    return;
+  }
+
+  a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+  if (a_Position < 0) {
+    console.log('Failed to get a_Position');
+    return;
+  }
+
+  u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
+  if (!u_FragColor) { console.log('Failed to get u_FragColor'); return; }
+
+  u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
+  if (!u_ModelMatrix) { console.log('Failed to get u_ModelMatrix'); return; }
+
+  u_GlobalRotateMatrix = gl.getUniformLocation(gl.program, 'u_GlobalRotateMatrix');
+  if (!u_GlobalRotateMatrix) { console.log('Failed to get u_GlobalRotateMatrix'); return; }
+
+  // Set identity matrix as default
+  var identityM = new Matrix4();
+  gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements);
+}
+
+function addActionsForHtmlUI() {
+  document.getElementById('angleSlide').addEventListener('input', function() {
+    g_globalAngle = this.value;
+    renderScene();
+  });
+}
+
+function main() {
+  setupWebGL();
+  connectVariablesToGLSL();
+  addActionsForHtmlUI();
+
+  gl.clearColor(0.1, 0.1, 0.1, 1.0);
+  renderScene();
+}
+
+function renderScene() {
+  var globalRotMat = new Matrix4().rotate(g_globalAngle, 0, 1, 0);
+  gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // --- BODY ---
+  var body = new Cube();
+  body.color = [0.45, 0.55, 0.65, 1.0];
+  body.matrix.translate(-0.2, -0.1, -0.2);
+  body.matrix.scale(0.4, 0.25, 0.45);
+  body.render();
+
+  // --- BODY FRONT TAPER ---
+  var bodyF = new Cube();
+  bodyF.color = [0.45, 0.55, 0.65, 1.0];
+  bodyF.matrix.translate(-0.16, -0.08, -0.36);
+  bodyF.matrix.scale(0.32, 0.22, 0.16);
+  bodyF.render();
+
+  // --- BODY BACK TAPER ---
+  var bodyB = new Cube();
+  bodyB.color = [0.45, 0.55, 0.65, 1.0];
+  bodyB.matrix.translate(-0.14, -0.08, 0.24);
+  bodyB.matrix.scale(0.28, 0.2, 0.14);
+  bodyB.render();
+
+  // --- NECK ---
+  var neck = new Cube();
+  neck.color = [0.45, 0.55, 0.65, 1.0];
+  neck.matrix.translate(-0.13, -0.02, -0.48);
+  neck.matrix.scale(0.26, 0.2, 0.12);
+  neck.render();
+
+  // --- HEAD ---
+  var head = new Cube();
+  head.color = [0.45, 0.55, 0.65, 1.0];
+  head.matrix.translate(-0.22, 0.05, -0.72);
+  head.matrix.scale(0.44, 0.36, 0.28);
+  head.render();
+
+  // --- SNOUT BASE ---
+  var snoutBase = new Cube();
+  snoutBase.color = [0.82, 0.65, 0.67, 1.0];
+  snoutBase.matrix.translate(-0.13, 0.06, -0.82);
+  snoutBase.matrix.scale(0.26, 0.16, 0.1);
+  snoutBase.render();
+
+  // --- SNOUT TIP ---
+  var snoutTip = new Cube();
+  snoutTip.color = [0.85, 0.68, 0.7, 1.0];
+  snoutTip.matrix.translate(-0.1, 0.08, -0.9);
+  snoutTip.matrix.scale(0.2, 0.14, 0.08);
+  snoutTip.render();
+
+  // --- NOSE ---
+  var nose = new Cube();
+  nose.color = [0.9, 0.52, 0.55, 1.0];
+  nose.matrix.translate(-0.06, 0.1, -0.94);
+  nose.matrix.scale(0.12, 0.09, 0.05);
+  nose.render();
+
+  // --- LEFT EAR OUTER ---
+  var earLO = new Cube();
+  earLO.color = [0.75, 0.58, 0.6, 1.0];
+  earLO.matrix.translate(-0.44, 0.1, -0.68);
+  earLO.matrix.scale(0.22, 0.3, 0.12);
+  earLO.render();
+
+  // --- LEFT EAR MID ---
+  var earLM = new Cube();
+  earLM.color = [0.88, 0.68, 0.7, 1.0];
+  earLM.matrix.translate(-0.41, 0.14, -0.67);
+  earLM.matrix.scale(0.15, 0.22, 0.06);
+  earLM.render();
+
+  // --- LEFT EAR INNER ---
+  var earLI = new Cube();
+  earLI.color = [0.95, 0.78, 0.78, 1.0];
+  earLI.matrix.translate(-0.39, 0.17, -0.665);
+  earLI.matrix.scale(0.09, 0.14, 0.04);
+  earLI.render();
+
+  // --- RIGHT EAR OUTER ---
+  var earRO = new Cube();
+  earRO.color = [0.75, 0.58, 0.6, 1.0];
+  earRO.matrix.translate(0.22, 0.1, -0.68);
+  earRO.matrix.scale(0.22, 0.3, 0.12);
+  earRO.render();
+
+  // --- RIGHT EAR MID ---
+  var earRM = new Cube();
+  earRM.color = [0.88, 0.68, 0.7, 1.0];
+  earRM.matrix.translate(0.25, 0.14, -0.67);
+  earRM.matrix.scale(0.15, 0.22, 0.06);
+  earRM.render();
+
+  // --- RIGHT EAR INNER ---
+  var earRI = new Cube();
+  earRI.color = [0.95, 0.78, 0.78, 1.0];
+  earRI.matrix.translate(0.27, 0.17, -0.665);
+  earRI.matrix.scale(0.09, 0.14, 0.04);
+  earRI.render();
+
+  // --- LEFT EYE WHITE ---
+  var eyeLW = new Cube();
+  eyeLW.color = [0.95, 0.95, 0.95, 1.0];
+  eyeLW.matrix.translate(-0.16, 0.21, -0.73);
+  eyeLW.matrix.scale(0.11, 0.11, 0.04);
+  eyeLW.render();
+
+  // --- LEFT EYE IRIS ---
+  var eyeLI = new Cube();
+  eyeLI.color = [0.35, 0.2, 0.1, 1.0];
+  eyeLI.matrix.translate(-0.148, 0.222, -0.74);
+  eyeLI.matrix.scale(0.075, 0.075, 0.03);
+  eyeLI.render();
+
+  // --- LEFT EYE PUPIL ---
+  var eyeLP = new Cube();
+  eyeLP.color = [0.05, 0.05, 0.05, 1.0];
+  eyeLP.matrix.translate(-0.138, 0.232, -0.75);
+  eyeLP.matrix.scale(0.045, 0.045, 0.025);
+  eyeLP.render();
+
+  // --- LEFT EYE HIGHLIGHT ---
+  var eyeLH = new Cube();
+  eyeLH.color = [1.0, 1.0, 1.0, 1.0];
+  eyeLH.matrix.translate(-0.125, 0.245, -0.76);
+  eyeLH.matrix.scale(0.02, 0.02, 0.02);
+  eyeLH.render();
+
+  // --- RIGHT EYE WHITE ---
+  var eyeRW = new Cube();
+  eyeRW.color = [0.95, 0.95, 0.95, 1.0];
+  eyeRW.matrix.translate(0.05, 0.21, -0.73);
+  eyeRW.matrix.scale(0.11, 0.11, 0.04);
+  eyeRW.render();
+
+  // --- RIGHT EYE IRIS ---
+  var eyeRI = new Cube();
+  eyeRI.color = [0.35, 0.2, 0.1, 1.0];
+  eyeRI.matrix.translate(0.062, 0.222, -0.74);
+  eyeRI.matrix.scale(0.075, 0.075, 0.03);
+  eyeRI.render();
+
+  // --- RIGHT EYE PUPIL ---
+  var eyeRP = new Cube();
+  eyeRP.color = [0.05, 0.05, 0.05, 1.0];
+  eyeRP.matrix.translate(0.072, 0.232, -0.75);
+  eyeRP.matrix.scale(0.045, 0.045, 0.025);
+  eyeRP.render();
+
+  // --- RIGHT EYE HIGHLIGHT ---
+  var eyeRH = new Cube();
+  eyeRH.color = [1.0, 1.0, 1.0, 1.0];
+  eyeRH.matrix.translate(0.085, 0.245, -0.76);
+  eyeRH.matrix.scale(0.02, 0.02, 0.02);
+  eyeRH.render();
+
+  // --- FRONT LEFT LEG - splays outward ---
+  var fLegL = new Cube();
+  fLegL.color = [0.45, 0.55, 0.65, 1.0];
+  fLegL.matrix.translate(-0.28, -0.1, -0.35);
+  fLegL.matrix.rotate(30, 1, 0, 0);
+  fLegL.matrix.scale(0.12, 0.18, 0.12);
+  fLegL.render();
+
+  // --- FRONT LEFT PAW ---
+  var fPawL = new Cube();
+  fPawL.color = [0.82, 0.63, 0.66, 1.0];
+  fPawL.matrix.translate(-0.3, -0.2, -0.42);
+  fPawL.matrix.scale(0.16, 0.05, 0.2);
+  fPawL.render();
+
+  // --- FRONT RIGHT LEG ---
+  var fLegR = new Cube();
+  fLegR.color = [0.45, 0.55, 0.65, 1.0];
+  fLegR.matrix.translate(0.16, -0.1, -0.35);
+  fLegR.matrix.rotate(30, 1, 0, 0);
+  fLegR.matrix.scale(0.12, 0.18, 0.12);
+  fLegR.render();
+
+  // --- FRONT RIGHT PAW ---
+  var fPawR = new Cube();
+  fPawR.color = [0.82, 0.63, 0.66, 1.0];
+  fPawR.matrix.translate(0.16, -0.2, -0.42);
+  fPawR.matrix.scale(0.16, 0.05, 0.2);
+  fPawR.render();
+
+  // --- BACK LEFT LEG ---
+  var bLegL = new Cube();
+  bLegL.color = [0.45, 0.55, 0.65, 1.0];
+  bLegL.matrix.translate(-0.28, -0.1, 0.1);
+  bLegL.matrix.rotate(30, 1, 0, 0);
+  bLegL.matrix.scale(0.12, 0.18, 0.14);
+  bLegL.render();
+
+  // --- BACK LEFT PAW ---
+  var bPawL = new Cube();
+  bPawL.color = [0.82, 0.63, 0.66, 1.0];
+  bPawL.matrix.translate(-0.3, -0.2, 0.06);
+  bPawL.matrix.scale(0.16, 0.05, 0.24);
+  bPawL.render();
+
+  // --- BACK RIGHT LEG ---
+  var bLegR = new Cube();
+  bLegR.color = [0.45, 0.55, 0.65, 1.0];
+  bLegR.matrix.translate(0.16, -0.1, 0.1);
+  bLegR.matrix.rotate(30, 1, 0, 0);
+  bLegR.matrix.scale(0.12, 0.18, 0.14);
+  bLegR.render();
+
+  // --- BACK RIGHT PAW ---
+  var bPawR = new Cube();
+  bPawR.color = [0.82, 0.63, 0.66, 1.0];
+  bPawR.matrix.translate(0.16, -0.2, 0.06);
+  bPawR.matrix.scale(0.16, 0.05, 0.24);
+  bPawR.render();
+
+  // --- TAIL - 7 segments ---
+  var tColors = [
+    [0.82,0.63,0.66], [0.81,0.62,0.65], [0.80,0.61,0.64],
+    [0.79,0.60,0.63], [0.78,0.59,0.62], [0.77,0.58,0.61],
+    [0.76,0.57,0.60]
+  ];
+  var tZ =   [0.24, 0.36, 0.46, 0.54, 0.60, 0.64, 0.66];
+  var tY =   [-0.05, 0.01, 0.08, 0.16, 0.25, 0.34, 0.42];
+  var tRot = [0, -18, -35, -52, -68, -82, -95];
+  var tScale=[0.05, 0.046, 0.042, 0.038, 0.034, 0.030, 0.026];
+
+  for (var i = 0; i < 7; i++) {
+    var t = new Cube();
+    t.color = [tColors[i][0], tColors[i][1], tColors[i][2], 1.0];
+    t.matrix.translate(-0.02, tY[i], tZ[i]);
+    t.matrix.rotate(tRot[i], 1, 0, 0);
+    t.matrix.scale(tScale[i], tScale[i], 0.13);
+    t.render();
+  }
+
+  // FPS
+  var now = performance.now();
+  var elapsed = now - g_lastFrameTime;
+  g_lastFrameTime = now;
+  document.getElementById('fps').innerHTML = 'FPS: ' + Math.floor(1000/elapsed);
+}

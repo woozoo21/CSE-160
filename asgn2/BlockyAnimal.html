@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Blocky Rat</title>
+</head>
+<body onload="main()">
+<canvas id="webgl" width="400" height="400">
+Please use a browser that supports "canvas"
+</canvas>
+
+<p id="fps">FPS: --</p>
+
+<p>
+  Camera Angle <input type="range" min="-180" max="180" value="0" class="slider" id="angleSlide"> 
+</p>
+
+<script src="lib/webgl-utils.js"></script>
+<script src="lib/webgl-debug.js"></script>
+<script src="lib/cuon-utils.js"></script>
+<script src="lib/cuon-matrix-cse160.js"></script>
+<script src="Triangle.js"></script>
+<script src="Circle.js"></script>
+<script src="Cube.js"></script>
+<script src="BlockyAnimal.js"></script>
+</body>
+</html>
