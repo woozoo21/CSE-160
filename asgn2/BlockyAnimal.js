@@ -7,7 +7,7 @@ var VSHADER_SOURCE = `
     gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
   }`;
 
-// Fragment shader program
+// fragment shader program
 var FSHADER_SOURCE = `
   precision mediump float;
   uniform vec4 u_FragColor;
@@ -15,7 +15,7 @@ var FSHADER_SOURCE = `
     gl_FragColor = u_FragColor;
   }`;
 
-// Global Variables
+// global Variables
 let canvas;
 let gl;
 let a_Position;
@@ -30,16 +30,19 @@ let g_lastFrameTime = performance.now();
 let g_frontLegAngle = 30;
 let g_backLegAngle = 30;
 let g_crawlPhase = 0;
+
 let g_animMode = 'none';
 let g_bodyBounce = 0;
 
 let g_tailBaseAngle = 0;
 let g_tailMidAngle = 0;
+
 let g_tailTipAngle = 0;
 
 let g_mouseDown = false;
 let g_lastMouseX = 0;
 let g_lastMouseY = 0;
+
 let g_mouseAngle = 0;
 let g_mouseAngleX = 0;
 let g_rollAngle = 0;
@@ -509,7 +512,7 @@ function renderScene() {
   tail3.matrix.scale(0.03, 0.03, 0.2);
   tail3.render();
 
-  // FPS
+  // fps
   var now = performance.now();
   var elapsed = now - g_lastFrameTime;
   g_lastFrameTime = now;
