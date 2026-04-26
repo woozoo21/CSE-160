@@ -40,8 +40,10 @@ let g_tailMidAngle = 0;
 let g_tailTipAngle = 0;
 
 let g_mouseDown = false;
-let g_lastMouseX = 0;
-let g_mouseAngleY = 0;
+let g_lastMouseY = 0;
+let g_mouseAngle = 0;
+let g_mouseAngleX = 0;
+let g_rollAngle = 0;
 
 let g_pokeTime = 0;
 
@@ -134,13 +136,13 @@ function tick() {
 function updateAnimationAngles() {
   var t = performance.now() / 1000.0 - g_startTime;
   if (g_animMode === 'run') {
-    g_frontLegAngle = 30 + 25 * Math.sin(t * 3);
-    g_backLegAngle  = 30 + 25 * Math.sin(t * 3 + Math.PI);
+    g_frontLegAngle = 30 + 25 * Math.sin(t * 5);
+    g_backLegAngle  = 30 + 25 * Math.sin(t * 5 + Math.PI);
     g_crawlPhase    = 0;
-    g_bodyBounce    = -0.04 * Math.sin(t * 3);
-    g_tailBaseAngle = 20 * Math.sin(t * 3);
-    g_tailMidAngle  = 15 * Math.sin(t * 3 + 1);
-    g_tailTipAngle  = 10 * Math.sin(t * 3 + 2);
+    g_bodyBounce    = -0.04 * Math.sin(t * 5);
+    g_tailBaseAngle = 20 * Math.sin(t * 5);
+    g_tailMidAngle  = 15 * Math.sin(t * 5 + 1);
+    g_tailTipAngle  = 10 * Math.sin(t * 5 + 2);
   } else if (g_animMode === 'crawl') {
     g_frontLegAngle = 30;
     g_backLegAngle  = 30;
@@ -211,19 +213,23 @@ function main() {
     } else {
       g_mouseDown = true;
       g_lastMouseX = ev.clientX;
+      g_lastMouseY = ev.clientY;
     }
-  };
-
-  canvas.onmouseup = function(ev) {
-    g_mouseDown = false;
   };
 
   canvas.onmousemove = function(ev) {
     if (!g_mouseDown) return;
     var dx = ev.clientX - g_lastMouseX;
-    g_globalAngle = (g_globalAngle + dx * 0.5)%360;
+    var dy = ev.clientY - g_lastMouseY;
+    g_mouseAngle = (g_mouseAngle + dx * 1.0) % 360;
+    g_mouseAngleX = Math.max(-90, Math.min(90, g_mouseAngleX + dy * 1.0));
     g_lastMouseX = ev.clientX;
+    g_lastMouseY = ev.clientY;
     renderScene();
+  };
+
+  canvas.onmouseup = function(ev) {
+    g_mouseDown = false;
   };
 
   gl.clearColor(0.1, 0.1, 0.1, 1.0);
@@ -240,8 +246,14 @@ function renderScene() {
   var bPawLAng = 0.7 * (bLAngle - 30);
   var bPawRAng = 0.7 * (bRAngle - 30);
 
-  var globalRotMat = new Matrix4().translate(0, g_bodyBounce, 0).rotate(g_globalAngle, 0, 1, 0);
+  var globalRotMat = new Matrix4()
+    .translate(0, g_bodyBounce, 0)
+    .rotate(g_globalAngle, 0, 1, 0)
+    .rotate(g_mouseAngle, 0, 1, 0)
+    .rotate(g_mouseAngleX, 1, 0, 0)
+    .rotate(g_rollAngle, 0, 0, 1);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
+
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // --- BODY ---
@@ -309,9 +321,9 @@ function renderScene() {
 
   // --- LEFT EAR INNER ---
   var earLIMat = new Matrix4();
-  earLIMat.translate(-0.25, 0.42, -0.65);
+  earLIMat.translate(-0.25, 0.42, -0.652);  // slightly forward
   earLIMat.rotate(90, 0, 0, 1);
-  earLIMat.scale(0.24, 0.28, 0.07);
+  earLIMat.scale(0.22, 0.26, 0.05);  // slightly smaller
   drawCylinder(earLIMat, [0.95, 0.78, 0.78, 1.0], 16);
 
   // --- RIGHT EAR - cylinder ---
@@ -323,9 +335,9 @@ function renderScene() {
 
   // --- RIGHT EAR INNER ---
   var earRIMat = new Matrix4();
-  earRIMat.translate(0.25, 0.42, -0.65);
+  earRIMat.translate(0.25, 0.42, -0.652);  // slightly forward
   earRIMat.rotate(90, 0, 0, 1);
-  earRIMat.scale(0.24, 0.28, 0.07);
+  earRIMat.scale(0.22, 0.26, 0.05);  // slightly smaller
   drawCylinder(earRIMat, [0.95, 0.78, 0.78, 1.0], 16);
 
   // --- LEFT EYE WHITE ---
