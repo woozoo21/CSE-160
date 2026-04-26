@@ -43,6 +43,8 @@ let g_mouseDown = false;
 let g_lastMouseX = 0;
 let g_mouseAngleY = 0;
 
+let g_pokeTime = 0;
+
 function setupWebGL() {
   canvas = document.getElementById('webgl');
   gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
@@ -136,11 +138,35 @@ function updateAnimationAngles() {
     g_backLegAngle  = 30 + 25 * Math.sin(t * 3 + Math.PI);
     g_crawlPhase    = 0;
     g_bodyBounce    = -0.04 * Math.sin(t * 3);
+    g_tailBaseAngle = 20 * Math.sin(t * 3);
+    g_tailMidAngle  = 15 * Math.sin(t * 3 + 1);
+    g_tailTipAngle  = 10 * Math.sin(t * 3 + 2);
   } else if (g_animMode === 'crawl') {
     g_frontLegAngle = 30;
     g_backLegAngle  = 30;
     g_crawlPhase    = 22 * Math.sin(t * 2);
     g_bodyBounce    = -0.015 * Math.abs(Math.sin(t * 2));
+    g_tailBaseAngle = 10 * Math.sin(t * 2);
+    g_tailMidAngle  = 8 * Math.sin(t * 2 + 1);
+    g_tailTipAngle  = 5 * Math.sin(t * 2 + 2);
+  } else if (g_animMode === 'poke') {
+    var dt = performance.now() / 1000.0 - g_pokeTime;
+    
+    // jump
+    g_bodyBounce = 0.4 * Math.sin(dt * Math.PI);
+    
+    // legs tucked
+    g_frontLegAngle = 30 + 20 * Math.sin(dt * 6);
+    g_backLegAngle  = 30 + 20 * Math.sin(dt * 6 + Math.PI);
+    g_tailBaseAngle = 30 * Math.sin(dt * 6);
+    g_tailMidAngle  = 20 * Math.sin(dt * 6 + 1);
+    g_tailTipAngle  = 10 * Math.sin(dt * 6 + 2);
+    
+    if (dt > 1.0) {
+      g_animMode = 'none';
+      g_bodyBounce = 0;
+      g_rollAngle = 0;
+    }
   }
 }
 
@@ -151,7 +177,7 @@ function main() {
 
   canvas.onmousedown = function(ev) {
     if (ev.shiftKey) {
-      // poke animation - we'll add this next
+      g_pokeTime = performance.now() / 1000.0;
       g_animMode = 'poke';
       tick();
     } else {
