@@ -24,9 +24,7 @@ let u_ModelMatrix;
 let u_GlobalRotateMatrix;
 
 let g_globalAngle = 0;
-
 let g_startTime = performance.now() / 1000.0;
-let g_seconds = performance.now() / 1000.0 - g_startTime;
 let g_lastFrameTime = performance.now();
 
 let g_frontLegAngle = 30;
@@ -40,12 +38,14 @@ let g_tailMidAngle = 0;
 let g_tailTipAngle = 0;
 
 let g_mouseDown = false;
+let g_lastMouseX = 0;
 let g_lastMouseY = 0;
 let g_mouseAngle = 0;
 let g_mouseAngleX = 0;
 let g_rollAngle = 0;
 
 let g_pokeTime = 0;
+let g_eyesClosed = false;
 
 function setupWebGL() {
   canvas = document.getElementById('webgl');
@@ -78,7 +78,6 @@ function connectVariablesToGLSL() {
   u_GlobalRotateMatrix = gl.getUniformLocation(gl.program, 'u_GlobalRotateMatrix');
   if (!u_GlobalRotateMatrix) { console.log('Failed to get u_GlobalRotateMatrix'); return; }
 
-  // Set identity matrix as default
   var identityM = new Matrix4();
   gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements);
 }
@@ -99,6 +98,21 @@ function addActionsForHtmlUI() {
     renderScene();
   });
 
+  document.getElementById('tailBaseSlide').addEventListener('input', function() {
+    g_tailBaseAngle = parseFloat(this.value);
+    renderScene();
+  });
+
+  document.getElementById('tailMidSlide').addEventListener('input', function() {
+    g_tailMidAngle = parseFloat(this.value);
+    renderScene();
+  });
+
+  document.getElementById('tailTipSlide').addEventListener('input', function() {
+    g_tailTipAngle = parseFloat(this.value);
+    renderScene();
+  });
+
   document.getElementById('runBtn').onclick = function() {
     g_animMode = 'run';
     tick();
@@ -112,18 +126,6 @@ function addActionsForHtmlUI() {
   document.getElementById('animOffBtn').onclick = function() {
     g_animMode = 'none';
   };
-  document.getElementById('tailBaseSlide').addEventListener('input', function() {
-    g_tailBaseAngle = parseFloat(this.value);
-    renderScene();
-  });
-  document.getElementById('tailMidSlide').addEventListener('input', function() {
-    g_tailMidAngle = parseFloat(this.value);
-    renderScene();
-  });
-  document.getElementById('tailTipSlide').addEventListener('input', function() {
-    g_tailTipAngle = parseFloat(this.value);
-    renderScene();
-  });
 }
 
 function tick() {
@@ -135,6 +137,7 @@ function tick() {
 
 function updateAnimationAngles() {
   var t = performance.now() / 1000.0 - g_startTime;
+
   if (g_animMode === 'run') {
     g_frontLegAngle = 30 + 25 * Math.sin(t * 5);
     g_backLegAngle  = 30 + 25 * Math.sin(t * 5 + Math.PI);
@@ -143,31 +146,33 @@ function updateAnimationAngles() {
     g_tailBaseAngle = 20 * Math.sin(t * 5);
     g_tailMidAngle  = 15 * Math.sin(t * 5 + 1);
     g_tailTipAngle  = 10 * Math.sin(t * 5 + 2);
+
   } else if (g_animMode === 'crawl') {
     g_frontLegAngle = 30;
     g_backLegAngle  = 30;
     g_crawlPhase    = 22 * Math.sin(t * 2);
     g_bodyBounce    = -0.015 * Math.abs(Math.sin(t * 2));
     g_tailBaseAngle = 10 * Math.sin(t * 2);
-    g_tailMidAngle  = 8 * Math.sin(t * 2 + 1);
-    g_tailTipAngle  = 5 * Math.sin(t * 2 + 2);
+    g_tailMidAngle  = 8  * Math.sin(t * 2 + 1);
+    g_tailTipAngle  = 5  * Math.sin(t * 2 + 2);
+
   } else if (g_animMode === 'poke') {
     var dt = performance.now() / 1000.0 - g_pokeTime;
-    
-    // jump
-    g_bodyBounce = 0.4 * Math.sin(dt * Math.PI);
-    
-    // legs tucked
-    g_frontLegAngle = 30 + 20 * Math.sin(dt * 6);
-    g_backLegAngle  = 30 + 20 * Math.sin(dt * 6 + Math.PI);
-    g_tailBaseAngle = 30 * Math.sin(dt * 6);
-    g_tailMidAngle  = 20 * Math.sin(dt * 6 + 1);
-    g_tailTipAngle  = 10 * Math.sin(dt * 6 + 2);
-    
+
+    g_eyesClosed    = true;
+    g_bodyBounce    = 0.3 * Math.sin(dt * Math.PI);
+    g_rollAngle     = dt * 360;
+    g_frontLegAngle = 30 + 30 * Math.sin(dt * 8);
+    g_backLegAngle  = 30 + 30 * Math.sin(dt * 8 + Math.PI);
+    g_tailBaseAngle = 40 * Math.sin(dt * 8);
+    g_tailMidAngle  = 30 * Math.sin(dt * 8 + 1);
+    g_tailTipAngle  = 20 * Math.sin(dt * 8 + 2);
+
     if (dt > 1.0) {
-      g_animMode = 'none';
+      g_animMode   = 'none';
       g_bodyBounce = 0;
-      g_rollAngle = 0;
+      g_rollAngle  = 0;
+      g_eyesClosed = false;
     }
   }
 }
@@ -176,27 +181,20 @@ function drawCylinder(matrix, color, sides) {
   sides = sides || 12;
   gl.uniform4f(u_FragColor, color[0], color[1], color[2], color[3]);
   gl.uniformMatrix4fv(u_ModelMatrix, false, matrix.elements);
-  
+
   var angleStep = 360 / sides;
-  
   for (var angle = 0; angle < 360; angle += angleStep) {
     var a1 = angle * Math.PI / 180;
     var a2 = (angle + angleStep) * Math.PI / 180;
-    
     var x1 = Math.cos(a1) * 0.5;
     var y1 = Math.sin(a1) * 0.5;
     var x2 = Math.cos(a2) * 0.5;
     var y2 = Math.sin(a2) * 0.5;
-    
-    // side face
+
     drawTriangle3D([x1,y1,0, x2,y2,0, x2,y2,1]);
     drawTriangle3D([x1,y1,0, x2,y2,1, x1,y1,1]);
-    
-    // front cap
-    drawTriangle3D([0,0,1, x1,y1,1, x2,y2,1]);
-    
-    // back cap
-    drawTriangle3D([0,0,0, x2,y2,0, x1,y1,0]);
+    drawTriangle3D([0,0,1,   x1,y1,1, x2,y2,1]);
+    drawTriangle3D([0,0,0,   x2,y2,0, x1,y1,0]);
   }
 }
 
@@ -211,25 +209,25 @@ function main() {
       g_animMode = 'poke';
       tick();
     } else {
-      g_mouseDown = true;
+      g_mouseDown  = true;
       g_lastMouseX = ev.clientX;
       g_lastMouseY = ev.clientY;
     }
+  };
+
+  canvas.onmouseup = function(ev) {
+    g_mouseDown = false;
   };
 
   canvas.onmousemove = function(ev) {
     if (!g_mouseDown) return;
     var dx = ev.clientX - g_lastMouseX;
     var dy = ev.clientY - g_lastMouseY;
-    g_mouseAngle = (g_mouseAngle + dx * 1.0) % 360;
-    g_mouseAngleX = Math.max(-90, Math.min(90, g_mouseAngleX + dy * 1.0));
-    g_lastMouseX = ev.clientX;
-    g_lastMouseY = ev.clientY;
+    g_mouseAngle  = (g_mouseAngle  - dx * 1.0) % 360;
+    g_mouseAngleX = Math.max(-90, Math.min(90, g_mouseAngleX - dy * 1.0));
+    g_lastMouseX  = ev.clientX;
+    g_lastMouseY  = ev.clientY;
     renderScene();
-  };
-
-  canvas.onmouseup = function(ev) {
-    g_mouseDown = false;
   };
 
   gl.clearColor(0.1, 0.1, 0.1, 1.0);
@@ -248,12 +246,11 @@ function renderScene() {
 
   var globalRotMat = new Matrix4()
     .translate(0, g_bodyBounce, 0)
-    .rotate(g_globalAngle, 0, 1, 0)
-    .rotate(g_mouseAngle, 0, 1, 0)
-    .rotate(g_mouseAngleX, 1, 0, 0)
-    .rotate(g_rollAngle, 0, 0, 1);
+    .rotate(g_globalAngle,  0, 1, 0)
+    .rotate(g_mouseAngle,   0, 1, 0)
+    .rotate(g_mouseAngleX,  1, 0, 0)
+    .rotate(g_rollAngle,    0, 0, 1);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
-
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // --- BODY ---
@@ -321,9 +318,9 @@ function renderScene() {
 
   // --- LEFT EAR INNER ---
   var earLIMat = new Matrix4();
-  earLIMat.translate(-0.25, 0.42, -0.652);  // slightly forward
+  earLIMat.translate(-0.25, 0.42, -0.652);
   earLIMat.rotate(90, 0, 0, 1);
-  earLIMat.scale(0.22, 0.26, 0.05);  // slightly smaller
+  earLIMat.scale(0.22, 0.26, 0.05);
   drawCylinder(earLIMat, [0.95, 0.78, 0.78, 1.0], 16);
 
   // --- RIGHT EAR - cylinder ---
@@ -335,66 +332,82 @@ function renderScene() {
 
   // --- RIGHT EAR INNER ---
   var earRIMat = new Matrix4();
-  earRIMat.translate(0.25, 0.42, -0.652);  // slightly forward
+  earRIMat.translate(0.25, 0.42, -0.652);
   earRIMat.rotate(90, 0, 0, 1);
-  earRIMat.scale(0.22, 0.26, 0.05);  // slightly smaller
+  earRIMat.scale(0.22, 0.26, 0.05);
   drawCylinder(earRIMat, [0.95, 0.78, 0.78, 1.0], 16);
 
-  // --- LEFT EYE WHITE ---
-  var eyeLW = new Cube();
-  eyeLW.color = [0.95, 0.95, 0.95, 1.0];
-  eyeLW.matrix.translate(-0.16, 0.21, -0.73);
-  eyeLW.matrix.scale(0.11, 0.11, 0.04);
-  eyeLW.render();
+  // --- EYES ---
+  if (g_eyesClosed) {
+    // closed eyes during barrel roll
+    var eyeLC = new Cube();
+    eyeLC.color = [0.1, 0.1, 0.15, 1.0];
+    eyeLC.matrix.translate(-0.2, 0.23, -0.73);
+    eyeLC.matrix.scale(0.11, 0.02, 0.04);
+    eyeLC.render();
 
-  // --- LEFT EYE IRIS ---
-  var eyeLI = new Cube();
-  eyeLI.color = [0.35, 0.2, 0.1, 1.0];
-  eyeLI.matrix.translate(-0.148, 0.222, -0.74);
-  eyeLI.matrix.scale(0.075, 0.075, 0.03);
-  eyeLI.render();
+    var eyeRC = new Cube();
+    eyeRC.color = [0.1, 0.1, 0.15, 1.0];
+    eyeRC.matrix.translate(0.05, 0.23, -0.73);
+    eyeRC.matrix.scale(0.11, 0.02, 0.04);
+    eyeRC.render();
+  } else {
+    // --- LEFT EYE WHITE ---
+    var eyeLW = new Cube();
+    eyeLW.color = [0.95, 0.95, 0.95, 1.0];
+    eyeLW.matrix.translate(-0.16, 0.21, -0.73);
+    eyeLW.matrix.scale(0.11, 0.11, 0.04);
+    eyeLW.render();
 
-  // --- LEFT EYE PUPIL ---
-  var eyeLP = new Cube();
-  eyeLP.color = [0.05, 0.05, 0.05, 1.0];
-  eyeLP.matrix.translate(-0.138, 0.232, -0.75);
-  eyeLP.matrix.scale(0.045, 0.045, 0.025);
-  eyeLP.render();
+    // --- LEFT EYE IRIS ---
+    var eyeLI = new Cube();
+    eyeLI.color = [0.35, 0.2, 0.1, 1.0];
+    eyeLI.matrix.translate(-0.148, 0.222, -0.74);
+    eyeLI.matrix.scale(0.075, 0.075, 0.03);
+    eyeLI.render();
 
-  // --- LEFT EYE HIGHLIGHT ---
-  var eyeLH = new Cube();
-  eyeLH.color = [1.0, 1.0, 1.0, 1.0];
-  eyeLH.matrix.translate(-0.125, 0.245, -0.76);
-  eyeLH.matrix.scale(0.02, 0.02, 0.02);
-  eyeLH.render();
+    // --- LEFT EYE PUPIL ---
+    var eyeLP = new Cube();
+    eyeLP.color = [0.05, 0.05, 0.05, 1.0];
+    eyeLP.matrix.translate(-0.138, 0.232, -0.75);
+    eyeLP.matrix.scale(0.045, 0.045, 0.025);
+    eyeLP.render();
 
-  // --- RIGHT EYE WHITE ---
-  var eyeRW = new Cube();
-  eyeRW.color = [0.95, 0.95, 0.95, 1.0];
-  eyeRW.matrix.translate(0.05, 0.21, -0.73);
-  eyeRW.matrix.scale(0.11, 0.11, 0.04);
-  eyeRW.render();
+    // --- LEFT EYE HIGHLIGHT ---
+    var eyeLH = new Cube();
+    eyeLH.color = [1.0, 1.0, 1.0, 1.0];
+    eyeLH.matrix.translate(-0.125, 0.245, -0.76);
+    eyeLH.matrix.scale(0.02, 0.02, 0.02);
+    eyeLH.render();
 
-  // --- RIGHT EYE IRIS ---
-  var eyeRI = new Cube();
-  eyeRI.color = [0.35, 0.2, 0.1, 1.0];
-  eyeRI.matrix.translate(0.062, 0.222, -0.74);
-  eyeRI.matrix.scale(0.075, 0.075, 0.03);
-  eyeRI.render();
+    // --- RIGHT EYE WHITE ---
+    var eyeRW = new Cube();
+    eyeRW.color = [0.95, 0.95, 0.95, 1.0];
+    eyeRW.matrix.translate(0.05, 0.21, -0.73);
+    eyeRW.matrix.scale(0.11, 0.11, 0.04);
+    eyeRW.render();
 
-  // --- RIGHT EYE PUPIL ---
-  var eyeRP = new Cube();
-  eyeRP.color = [0.05, 0.05, 0.05, 1.0];
-  eyeRP.matrix.translate(0.072, 0.232, -0.75);
-  eyeRP.matrix.scale(0.045, 0.045, 0.025);
-  eyeRP.render();
+    // --- RIGHT EYE IRIS ---
+    var eyeRI = new Cube();
+    eyeRI.color = [0.35, 0.2, 0.1, 1.0];
+    eyeRI.matrix.translate(0.062, 0.222, -0.74);
+    eyeRI.matrix.scale(0.075, 0.075, 0.03);
+    eyeRI.render();
 
-  // --- RIGHT EYE HIGHLIGHT ---
-  var eyeRH = new Cube();
-  eyeRH.color = [1.0, 1.0, 1.0, 1.0];
-  eyeRH.matrix.translate(0.085, 0.245, -0.76);
-  eyeRH.matrix.scale(0.02, 0.02, 0.02);
-  eyeRH.render();
+    // --- RIGHT EYE PUPIL ---
+    var eyeRP = new Cube();
+    eyeRP.color = [0.05, 0.05, 0.05, 1.0];
+    eyeRP.matrix.translate(0.072, 0.232, -0.75);
+    eyeRP.matrix.scale(0.045, 0.045, 0.025);
+    eyeRP.render();
+
+    // --- RIGHT EYE HIGHLIGHT ---
+    var eyeRH = new Cube();
+    eyeRH.color = [1.0, 1.0, 1.0, 1.0];
+    eyeRH.matrix.translate(0.085, 0.245, -0.76);
+    eyeRH.matrix.scale(0.02, 0.02, 0.02);
+    eyeRH.render();
+  }
 
   // --- FRONT LEFT LEG ---
   var fLegL = new Cube();
@@ -404,11 +417,11 @@ function renderScene() {
   fLegL.matrix.scale(0.12, 0.18, 0.12);
   fLegL.render();
 
-  // --- FRONT LEFT PAW - inherits leg matrix ---
+  // --- FRONT LEFT PAW ---
   var fPawL = new Cube();
   fPawL.color = [0.82, 0.63, 0.66, 1.0];
   fPawL.matrix = new Matrix4(fLegL.matrix);
-  fPawL.matrix.scale(1/0.12, 1/0.18, 1/0.12); // undo leg scale
+  fPawL.matrix.scale(1/0.12, 1/0.18, 1/0.12);
   fPawL.matrix.translate(-0.02, -0.05, -0.09);
   fPawL.matrix.rotate(fPawLAng, 1, 0, 0);
   fPawL.matrix.scale(0.16, 0.05, 0.2);
@@ -468,7 +481,7 @@ function renderScene() {
   bPawR.matrix.scale(0.16, 0.05, 0.24);
   bPawR.render();
 
-  // --- TAIL BASE ---
+  // --- TAIL BASE (joint 1) ---
   var tail1 = new Cube();
   tail1.color = [0.82, 0.63, 0.66, 1.0];
   tail1.matrix.translate(-0.02, -0.05, 0.34);
@@ -476,7 +489,7 @@ function renderScene() {
   tail1.matrix.scale(0.05, 0.05, 0.2);
   tail1.render();
 
-  // --- TAIL MID - inherits base rotation ---
+  // --- TAIL MID (joint 2) ---
   var tail2 = new Cube();
   tail2.color = [0.80, 0.61, 0.64, 1.0];
   tail2.matrix = new Matrix4(tail1.matrix);
@@ -486,7 +499,7 @@ function renderScene() {
   tail2.matrix.scale(0.04, 0.04, 0.2);
   tail2.render();
 
-  // --- TAIL TIP - inherits base + mid rotation ---
+  // --- TAIL TIP (joint 3) ---
   var tail3 = new Cube();
   tail3.color = [0.78, 0.59, 0.62, 1.0];
   tail3.matrix = new Matrix4(tail2.matrix);
