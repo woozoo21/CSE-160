@@ -35,6 +35,14 @@ let g_crawlPhase = 0;
 let g_animMode = 'none';
 let g_bodyBounce = 0;
 
+let g_tailBaseAngle = 0;
+let g_tailMidAngle = 0;
+let g_tailTipAngle = 0;
+
+let g_mouseDown = false;
+let g_lastMouseX = 0;
+let g_mouseAngleY = 0;
+
 function setupWebGL() {
   canvas = document.getElementById('webgl');
   gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
@@ -100,6 +108,18 @@ function addActionsForHtmlUI() {
   document.getElementById('animOffBtn').onclick = function() {
     g_animMode = 'none';
   };
+  document.getElementById('tailBaseSlide').addEventListener('input', function() {
+    g_tailBaseAngle = parseFloat(this.value);
+    renderScene();
+  });
+  document.getElementById('tailMidSlide').addEventListener('input', function() {
+    g_tailMidAngle = parseFloat(this.value);
+    renderScene();
+  });
+  document.getElementById('tailTipSlide').addEventListener('input', function() {
+    g_tailTipAngle = parseFloat(this.value);
+    renderScene();
+  });
 }
 
 function tick() {
@@ -128,6 +148,29 @@ function main() {
   setupWebGL();
   connectVariablesToGLSL();
   addActionsForHtmlUI();
+
+  canvas.onmousedown = function(ev) {
+    if (ev.shiftKey) {
+      // poke animation - we'll add this next
+      g_animMode = 'poke';
+      tick();
+    } else {
+      g_mouseDown = true;
+      g_lastMouseX = ev.clientX;
+    }
+  };
+
+  canvas.onmouseup = function(ev) {
+    g_mouseDown = false;
+  };
+
+  canvas.onmousemove = function(ev) {
+    if (!g_mouseDown) return;
+    var dx = ev.clientX - g_lastMouseX;
+    g_globalAngle = (g_globalAngle + dx * 0.5)%360;
+    g_lastMouseX = ev.clientX;
+    renderScene();
+  };
 
   gl.clearColor(0.1, 0.1, 0.1, 1.0);
   renderScene();
@@ -373,25 +416,33 @@ function renderScene() {
   bPawR.matrix.scale(0.16, 0.05, 0.24);
   bPawR.render();
 
-  // --- TAIL - 7 segments ---
-  var tColors = [
-    [0.82,0.63,0.66], [0.81,0.62,0.65], [0.80,0.61,0.64],
-    [0.79,0.60,0.63], [0.78,0.59,0.62], [0.77,0.58,0.61],
-    [0.76,0.57,0.60]
-  ];
-  var tZ =   [0.24, 0.36, 0.46, 0.54, 0.60, 0.64, 0.66];
-  var tY =   [-0.05, 0.01, 0.08, 0.16, 0.25, 0.34, 0.42];
-  var tRot = [0, -18, -35, -52, -68, -82, -95];
-  var tScale=[0.05, 0.046, 0.042, 0.038, 0.034, 0.030, 0.026];
+  // --- TAIL BASE ---
+  var tail1 = new Cube();
+  tail1.color = [0.82, 0.63, 0.66, 1.0];
+  tail1.matrix.translate(-0.02, -0.05, 0.34);
+  tail1.matrix.rotate(g_tailBaseAngle, 1, 0, 0);
+  tail1.matrix.scale(0.05, 0.05, 0.2);
+  tail1.render();
 
-  for (var i = 0; i < 7; i++) {
-    var t = new Cube();
-    t.color = [tColors[i][0], tColors[i][1], tColors[i][2], 1.0];
-    t.matrix.translate(-0.02, tY[i], tZ[i]);
-    t.matrix.rotate(tRot[i], 1, 0, 0);
-    t.matrix.scale(tScale[i], tScale[i], 0.13);
-    t.render();
-  }
+  // --- TAIL MID - inherits base rotation ---
+  var tail2 = new Cube();
+  tail2.color = [0.80, 0.61, 0.64, 1.0];
+  tail2.matrix = new Matrix4(tail1.matrix);
+  tail2.matrix.scale(1/0.05, 1/0.05, 1/0.2);
+  tail2.matrix.translate(0, 0, 0.2);
+  tail2.matrix.rotate(g_tailBaseAngle + g_tailMidAngle, 1, 0, 0);
+  tail2.matrix.scale(0.04, 0.04, 0.2);
+  tail2.render();
+
+  // --- TAIL TIP - inherits base + mid rotation ---
+  var tail3 = new Cube();
+  tail3.color = [0.78, 0.59, 0.62, 1.0];
+  tail3.matrix = new Matrix4(tail2.matrix);
+  tail3.matrix.scale(1/0.04, 1/0.04, 1/0.2);
+  tail3.matrix.translate(0, 0, 0.2);
+  tail3.matrix.rotate(g_tailBaseAngle + g_tailMidAngle + g_tailTipAngle, 1, 0, 0);
+  tail3.matrix.scale(0.03, 0.03, 0.2);
+  tail3.render();
 
   // FPS
   var now = performance.now();
