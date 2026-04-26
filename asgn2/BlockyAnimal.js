@@ -170,6 +170,34 @@ function updateAnimationAngles() {
   }
 }
 
+function drawCylinder(matrix, color, sides) {
+  sides = sides || 12;
+  gl.uniform4f(u_FragColor, color[0], color[1], color[2], color[3]);
+  gl.uniformMatrix4fv(u_ModelMatrix, false, matrix.elements);
+  
+  var angleStep = 360 / sides;
+  
+  for (var angle = 0; angle < 360; angle += angleStep) {
+    var a1 = angle * Math.PI / 180;
+    var a2 = (angle + angleStep) * Math.PI / 180;
+    
+    var x1 = Math.cos(a1) * 0.5;
+    var y1 = Math.sin(a1) * 0.5;
+    var x2 = Math.cos(a2) * 0.5;
+    var y2 = Math.sin(a2) * 0.5;
+    
+    // side face
+    drawTriangle3D([x1,y1,0, x2,y2,0, x2,y2,1]);
+    drawTriangle3D([x1,y1,0, x2,y2,1, x1,y1,1]);
+    
+    // front cap
+    drawTriangle3D([0,0,1, x1,y1,1, x2,y2,1]);
+    
+    // back cap
+    drawTriangle3D([0,0,0, x2,y2,0, x1,y1,0]);
+  }
+}
+
 function main() {
   setupWebGL();
   connectVariablesToGLSL();
@@ -272,47 +300,33 @@ function renderScene() {
   nose.matrix.scale(0.12, 0.09, 0.05);
   nose.render();
 
-  // --- LEFT EAR OUTER ---
-  var earLO = new Cube();
-  earLO.color = [0.75, 0.58, 0.6, 1.0];
-  earLO.matrix.translate(-0.44, 0.1, -0.68);
-  earLO.matrix.scale(0.22, 0.3, 0.12);
-  earLO.render();
-
-  // --- LEFT EAR MID ---
-  var earLM = new Cube();
-  earLM.color = [0.88, 0.68, 0.7, 1.0];
-  earLM.matrix.translate(-0.41, 0.14, -0.67);
-  earLM.matrix.scale(0.15, 0.22, 0.06);
-  earLM.render();
+  // --- LEFT EAR - cylinder ---
+  var earLMat = new Matrix4();
+  earLMat.translate(-0.25, 0.42, -0.65);
+  earLMat.rotate(90, 0, 0, 1);
+  earLMat.scale(0.35, 0.4, 0.06);
+  drawCylinder(earLMat, [0.75, 0.58, 0.6, 1.0], 16);
 
   // --- LEFT EAR INNER ---
-  var earLI = new Cube();
-  earLI.color = [0.95, 0.78, 0.78, 1.0];
-  earLI.matrix.translate(-0.39, 0.17, -0.665);
-  earLI.matrix.scale(0.09, 0.14, 0.04);
-  earLI.render();
+  var earLIMat = new Matrix4();
+  earLIMat.translate(-0.25, 0.42, -0.65);
+  earLIMat.rotate(90, 0, 0, 1);
+  earLIMat.scale(0.24, 0.28, 0.07);
+  drawCylinder(earLIMat, [0.95, 0.78, 0.78, 1.0], 16);
 
-  // --- RIGHT EAR OUTER ---
-  var earRO = new Cube();
-  earRO.color = [0.75, 0.58, 0.6, 1.0];
-  earRO.matrix.translate(0.22, 0.1, -0.68);
-  earRO.matrix.scale(0.22, 0.3, 0.12);
-  earRO.render();
-
-  // --- RIGHT EAR MID ---
-  var earRM = new Cube();
-  earRM.color = [0.88, 0.68, 0.7, 1.0];
-  earRM.matrix.translate(0.25, 0.14, -0.67);
-  earRM.matrix.scale(0.15, 0.22, 0.06);
-  earRM.render();
+  // --- RIGHT EAR - cylinder ---
+  var earRMat = new Matrix4();
+  earRMat.translate(0.25, 0.42, -0.65);
+  earRMat.rotate(90, 0, 0, 1);
+  earRMat.scale(0.35, 0.4, 0.06);
+  drawCylinder(earRMat, [0.75, 0.58, 0.6, 1.0], 16);
 
   // --- RIGHT EAR INNER ---
-  var earRI = new Cube();
-  earRI.color = [0.95, 0.78, 0.78, 1.0];
-  earRI.matrix.translate(0.27, 0.17, -0.665);
-  earRI.matrix.scale(0.09, 0.14, 0.04);
-  earRI.render();
+  var earRIMat = new Matrix4();
+  earRIMat.translate(0.25, 0.42, -0.65);
+  earRIMat.rotate(90, 0, 0, 1);
+  earRIMat.scale(0.24, 0.28, 0.07);
+  drawCylinder(earRIMat, [0.95, 0.78, 0.78, 1.0], 16);
 
   // --- LEFT EYE WHITE ---
   var eyeLW = new Cube();
