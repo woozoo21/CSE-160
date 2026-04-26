@@ -314,7 +314,7 @@ function renderScene() {
   fPawL.color = [0.82, 0.63, 0.66, 1.0];
   fPawL.matrix = new Matrix4(fLegL.matrix);
   fPawL.matrix.scale(1/0.12, 1/0.18, 1/0.12); // undo leg scale
-  fPawL.matrix.translate(-0.02, -0.05, -0.2);
+  fPawL.matrix.translate(-0.02, -0.05, -0.09);
   fPawL.matrix.rotate(fPawLAng, 1, 0, 0);
   fPawL.matrix.scale(0.16, 0.05, 0.2);
   fPawL.render();
@@ -332,7 +332,7 @@ function renderScene() {
   fPawR.color = [0.82, 0.63, 0.66, 1.0];
   fPawR.matrix = new Matrix4(fLegR.matrix);
   fPawR.matrix.scale(1/0.12, 1/0.18, 1/0.12);
-  fPawR.matrix.translate(-0.02, -0.05, -0.2);
+  fPawR.matrix.translate(-0.02, -0.05, -0.09);
   fPawR.matrix.rotate(fPawRAng, 1, 0, 0);
   fPawR.matrix.scale(0.16, 0.05, 0.2);
   fPawR.render();
@@ -350,7 +350,7 @@ function renderScene() {
   bPawL.color = [0.82, 0.63, 0.66, 1.0];
   bPawL.matrix = new Matrix4(bLegL.matrix);
   bPawL.matrix.scale(1/0.12, 1/0.18, 1/0.14);
-  bPawL.matrix.translate(-0.02, -0.05, -0.24);
+  bPawL.matrix.translate(-0.02, -0.05, -0.1);
   bPawL.matrix.rotate(bPawLAng, 1, 0, 0);
   bPawL.matrix.scale(0.16, 0.05, 0.24);
   bPawL.render();
@@ -368,7 +368,7 @@ function renderScene() {
   bPawR.color = [0.82, 0.63, 0.66, 1.0];
   bPawR.matrix = new Matrix4(bLegR.matrix);
   bPawR.matrix.scale(1/0.12, 1/0.18, 1/0.14);
-  bPawR.matrix.translate(-0.02, -0.05, -0.24);
+  bPawR.matrix.translate(-0.02, -0.05, -0.1);
   bPawR.matrix.rotate(bPawRAng, 1, 0, 0);
   bPawR.matrix.scale(0.16, 0.05, 0.24);
   bPawR.render();
