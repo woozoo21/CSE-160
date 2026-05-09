@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Blocky Rat</title>
+</head>
+<body onload="main()">
+<canvas id="webgl" width="400" height="400">
+Please use a browser that supports "canvas"
+</canvas>
+
+<p id="fps">FPS: --</p>
+
+<p>
+  Camera Angle <input type="range" min="-180" max="180" value="0" class="slider" id="angleSlide">
+</p>
+<p>
+  Front Leg <input type="range" min="-45" max="45" value="30" class="slider" id="frontLegSlide">
+</p>
+<p>
+  Back Leg <input type="range" min="-45" max="45" value="30" class="slider" id="backLegSlide">
+</p>
+<p>
+  Animation <button id="runBtn">Run</button>
+  <button id="crawlBtn">Crawl</button>
+  <button id="animOffBtn">Stop</button>
+</p>
+
+<p>
+  Tail Base <input type="range" min="-45" max="45" value="0" class="slider" id="tailBaseSlide">
+</p>
+<p>
+  Tail Mid <input type="range" min="-45" max="45" value="0" class="slider" id="tailMidSlide">
+</p>
+<p>
+  Tail Tip <input type="range" min="-45" max="45" value="0" class="slider" id="tailTipSlide">
+</p>
+
+<p style="color: white; background: #222; padding: 10px; font-family: monospace;">
+  <b>Controls:</b><br>
+  Drag mouse → rotate rat (360 view)<br>
+  ⇧ Shift+Click → poke animation (jump)<br>
+  <b>Sliders:</b><br>
+  1. Camera Angle → rotate view<br>
+  2. Front Leg → joint 1 (upper front legs)<br>
+  3. Back Leg → joint 2 (upper back legs)<br>
+  4. Tail Base → joint 3 level 1 (whole tail)<br>
+  5. Tail Mid → joint 3 level 2 (mid + tip)<br>
+  6. Tail Tip → joint 3 level 3 (tip only)<br>
+  <b>Animation:</b><br>
+  1. Run → legs + tail animation<br>
+  2. Crawl → body sway animation<br>
+  3. Stop → freeze<br>
+  <b>Non-Cube Primitive:</b><br>
+    Circles used for ears!
+</p>
+
+<script src="lib/webgl-utils.js"></script>
+<script src="lib/webgl-debug.js"></script>
+<script src="lib/cuon-utils.js"></script>
+<script src="lib/cuon-matrix-cse160.js"></script>
+<script src="Triangle.js"></script>
+<script src="Circle.js"></script>
+<script src="Cube.js"></script>
+<script src="Camera.js"></script>
+<script src="World.js"></script>
+</body>
+</html>
