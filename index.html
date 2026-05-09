@@ -4,34 +4,767 @@
   <meta charset="utf-8">
   <title>CSE-160 | Sashreek</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: sans-serif;
-      max-width: 600px;
-      margin: 60px auto;
-      background: #111;
-      color: white;
+      background: #0a0a0f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'VT323', monospace;
+      overflow: hidden;
     }
-    h1 { font-size: 28px; margin-bottom: 8px; }
-    p  { color: #aaa; margin-bottom: 32px; }
-    h2 { font-size: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
-    a  { display: block; color: white; text-decoration: none; padding: 12px 16px; border: 1px solid #333; border-radius: 8px; margin-bottom: 8px; }
-    a:hover { background: #222; border-color: #555; }
+
+    #header {
+      font-family: 'Press Start 2P', monospace;
+      color: #ffd700;
+      font-size: 13px;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      text-shadow: 0 0 10px #ffd70066;
+    }
+
+    #subtitle {
+      color: #888;
+      font-size: 18px;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+
+    #game-wrapper {
+      position: relative;
+      border: 3px solid #ffd70044;
+      box-shadow: 0 0 30px #ffd70022, inset 0 0 30px #00000066;
+    }
+
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    #controls-bar {
+      display: flex;
+      gap: 40px;
+      margin-top: 10px;
+      font-size: 16px;
+      color: #aaa;
+    }
+
+    #controls-bar span { color: #ffd700; }
+
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.82);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 10;
+    }
+
+    #overlay h1 {
+      font-family: 'Press Start 2P', monospace;
+      color: #ffd700;
+      font-size: 20px;
+      text-align: center;
+      text-shadow: 0 0 15px #ffd700aa;
+      line-height: 1.8;
+    }
+
+    #overlay p {
+      color: #ccc;
+      font-size: 22px;
+      text-align: center;
+    }
+
+    #start-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 13px;
+      background: #ffd700;
+      color: #0a0a0f;
+      border: none;
+      padding: 14px 28px;
+      cursor: pointer;
+      border-radius: 2px;
+      box-shadow: 4px 4px 0 #aa8800;
+      transition: transform 0.1s;
+    }
+
+    #start-btn:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #aa8800; }
+    #start-btn:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 #aa8800; }
+
+    #hint {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      color: #ffd70099;
+      font-family: 'VT323', monospace;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    #portfolio-link {
+      margin-top: 10px;
+      font-size: 16px;
+      color: #888;
+    }
+
+    #portfolio-link a {
+      color: #ffd700;
+      text-decoration: none;
+    }
+
+    #portfolio-link a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
-  <h1>Hello, CSE-160!</h1>
-  <p>Welcome to my website. Check out my assignments below.</p>
+<div id="header">CSE 160 — Sashreek Rewatkar</div>
+<div id="subtitle">Reach the doors to open assignments</div>
 
-  <h2>Assignments</h2>
-  <a href="https://woozoo21.github.io/CSE-160/asgn0/asg0.html">Assignment 0</a>
-  <a href="https://woozoo21.github.io/CSE-160/asgn1/index.html">Assignment 1 — WebGL Paint</a>
-  <a href="https://woozoo21.github.io/CSE-160/asgn2/index.html">Assignment 2</a>
-  <a href="https://woozoo21.github.io/CSE-160/asgn3/index.html">Assignment 3</a>
+<div id="game-wrapper">
+  <canvas id="c" width="700" height="480"></canvas>
 
-  <br>
-  <h2>Art Portfolio</h2>
-  <a href="https://sashstudio.mypixieset.com/" target="_blank">sashstudio.mypixieset.com ↗</a>
+  <div id="overlay">
+    <h1>CSE 160<br>DUNGEON</h1>
+    <p>Collect gems · Reach the doors</p>
+    <button id="start-btn" onclick="startGame()">▶ START</button>
+  </div>
 
+  <div id="hint">↑ or W to jump · ← → or A D to move · SPACE near door to enter</div>
+</div>
+
+<div id="controls-bar">
+  <div><span>WASD</span> or <span>← → ↑</span> move</div>
+  <div><span>SPACE</span> enter door</div>
+</div>
+
+<div id="portfolio-link">
+  Art: <a href="https://sashstudio.mypixieset.com/" target="_blank">sashstudio.mypixieset.com ↗</a>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 700, H = 480;
+
+const ASSIGNMENTS = [
+  { label: "ASGN 0", title: "Assignment 0", url: "https://woozoo21.github.io/CSE-160/asgn0/asg0.html" },
+  { label: "ASGN 1", title: "WebGL Paint", url: "https://woozoo21.github.io/CSE-160/asgn1/index.html" },
+  { label: "ASGN 2", title: "Blocky Animal", url: "https://woozoo21.github.io/CSE-160/asgn2/BlockyAnimal.html" },
+  { label: "ASGN 3", title: "3D Scene", url: "https://woozoo21.github.io/CSE-160/asgn3/index.html" },
+  { label: "ASGN 4", title: "Coming Soon", url: null },
+  { label: "ASGN 5", title: "Coming Soon", url: null },
+];
+
+// Tile size
+const T = 32;
+
+// Colors
+const C = {
+  wall:    '#3d3520',
+  wallHL:  '#4a4128',
+  wallEdge:'#2a2415',
+  floor:   '#2e2a18',
+  floorHL: '#382e1a',
+  bg:      '#1a1610',
+  gemBlue: '#4fc3f7',
+  gemRed:  '#ef5350',
+  gemGold: '#ffd700',
+  doorFrame: '#8B6914',
+  doorWood:  '#6B4F0E',
+  doorKnob:  '#ffd700',
+  playerBody: '#4fc3f7',
+  playerEye:  '#fff',
+  leverBase: '#888',
+  leverHandle: '#ffd700',
+  torch:   '#ff9800',
+  ivy:     '#2e7d32',
+  spike:   '#aaa',
+};
+
+// Level layout: 0=empty, 1=wall, 2=floor platform
+// Grid is 700/32 = ~21 wide, 480/32 = 15 tall
+const COLS = Math.ceil(W / T);
+const ROWS = Math.ceil(H / T);
+
+// Level map (21 cols x 15 rows)
+// Using hand-crafted layout for a dungeon feel
+const levelMap = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,1,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,1,1,1,0,0,1,1,1,0,0,1,1,1,0,0,1,1,1,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+
+// Doors: placed on top of wall tiles at row 3
+// 6 doors spread across 3 platforms
+const doorDefs = [
+  { col: 3,  row: 3,  asgn: 0 },
+  { col: 5,  row: 3,  asgn: 1 },
+  { col: 10, row: 3,  asgn: 2 },
+  { col: 12, row: 3,  asgn: 3 },
+  { col: 16, row: 3,  asgn: 4 },
+  { col: 18, row: 3,  asgn: 5 },
+];
+
+// Gems scattered around
+let gems = [
+  {x:100,y:160,r:6,color:C.gemBlue,collected:false},
+  {x:220,y:110,r:6,color:C.gemRed,collected:false},
+  {x:340,y:160,r:6,color:C.gemBlue,collected:false},
+  {x:460,y:110,r:6,color:C.gemGold,collected:false},
+  {x:580,y:160,r:6,color:C.gemRed,collected:false},
+  {x:150,y:260,r:6,color:C.gemGold,collected:false},
+  {x:310,y:290,r:6,color:C.gemBlue,collected:false},
+  {x:470,y:290,r:6,color:C.gemRed,collected:false},
+  {x:620,y:260,r:6,color:C.gemGold,collected:false},
+  {x:90,y:370,r:6,color:C.gemBlue,collected:false},
+  {x:250,y:370,r:6,color:C.gemRed,collected:false},
+  {x:400,y:370,r:6,color:C.gemGold,collected:false},
+  {x:550,y:370,r:6,color:C.gemBlue,collected:false},
+];
+
+// Player
+const player = {
+  x: 60, y: 340,
+  w: 22, h: 28,
+  vx: 0, vy: 0,
+  onGround: false,
+  dir: 1,
+  frame: 0,
+  frameTimer: 0,
+  gemCount: 0,
+};
+
+const keys = {};
+let gameRunning = false;
+let nearDoor = null;
+let doorFlash = 0;
+let particles = [];
+let torchFlicker = 0;
+
+function startGame() {
+  document.getElementById('overlay').style.display = 'none';
+  gameRunning = true;
+  requestAnimationFrame(loop);
+}
+
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Touch controls for mobile
+let touchStartX = 0;
+canvas.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  keys[' '] = true;
+});
+canvas.addEventListener('touchend', () => { keys[' '] = false; });
+canvas.addEventListener('touchmove', e => {
+  const dx = e.touches[0].clientX - touchStartX;
+  if (dx > 10) { keys['ArrowRight'] = true; keys['ArrowLeft'] = false; }
+  else if (dx < -10) { keys['ArrowLeft'] = true; keys['ArrowRight'] = false; }
+  else { keys['ArrowLeft'] = false; keys['ArrowRight'] = false; }
+});
+
+function tileAt(px, py) {
+  const col = Math.floor(px / T);
+  const row = Math.floor(py / T);
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return 1;
+  return levelMap[row]?.[col] ?? 1;
+}
+
+function isSolid(px, py) {
+  return tileAt(px, py) === 1;
+}
+
+function updatePlayer() {
+  const speed = 3.2;
+  const jump  = -9.5;
+  const grav  = 0.45;
+
+  const left  = keys['ArrowLeft']  || keys['a'] || keys['A'];
+  const right = keys['ArrowRight'] || keys['d'] || keys['D'];
+  const up    = keys['ArrowUp']    || keys['w'] || keys['W'];
+
+  if (left)  { player.vx = -speed; player.dir = -1; }
+  else if (right) { player.vx = speed; player.dir = 1; }
+  else player.vx *= 0.7;
+
+  if ((up) && player.onGround) {
+    player.vy = jump;
+    player.onGround = false;
+  }
+
+  player.vy += grav;
+  if (player.vy > 14) player.vy = 14;
+
+  // Horizontal movement
+  player.x += player.vx;
+  const pw = player.w;
+  const ph = player.h;
+
+  // Wall collision X
+  if (player.vx > 0) {
+    if (isSolid(player.x + pw, player.y + 4) || isSolid(player.x + pw, player.y + ph - 4)) {
+      player.x = Math.floor((player.x + pw) / T) * T - pw;
+      player.vx = 0;
+    }
+  } else if (player.vx < 0) {
+    if (isSolid(player.x, player.y + 4) || isSolid(player.x, player.y + ph - 4)) {
+      player.x = Math.ceil(player.x / T) * T;
+      player.vx = 0;
+    }
+  }
+
+  // Vertical movement
+  player.y += player.vy;
+  player.onGround = false;
+
+  if (player.vy > 0) {
+    if (isSolid(player.x + 3, player.y + ph) || isSolid(player.x + pw - 3, player.y + ph)) {
+      player.y = Math.floor((player.y + ph) / T) * T - ph;
+      player.vy = 0;
+      player.onGround = true;
+    }
+  } else if (player.vy < 0) {
+    if (isSolid(player.x + 3, player.y) || isSolid(player.x + pw - 3, player.y)) {
+      player.y = Math.ceil(player.y / T) * T;
+      player.vy = 0;
+    }
+  }
+
+  // Bounds
+  if (player.x < 2) { player.x = 2; player.vx = 0; }
+  if (player.x + pw > W - 2) { player.x = W - 2 - pw; player.vx = 0; }
+
+  // Respawn if fell
+  if (player.y > H + 50) {
+    player.x = 60; player.y = 340; player.vx = 0; player.vy = 0;
+  }
+
+  // Animation
+  if (Math.abs(player.vx) > 0.5 && player.onGround) {
+    player.frameTimer++;
+    if (player.frameTimer > 8) { player.frame = (player.frame + 1) % 4; player.frameTimer = 0; }
+  } else {
+    player.frame = 0;
+  }
+
+  // Gem collection
+  gems.forEach(g => {
+    if (g.collected) return;
+    const dx = (player.x + player.w/2) - g.x;
+    const dy = (player.y + player.h/2) - g.y;
+    if (Math.sqrt(dx*dx+dy*dy) < 20) {
+      g.collected = true;
+      player.gemCount++;
+      spawnParticles(g.x, g.y, g.color);
+    }
+  });
+
+  // Near door detection
+  nearDoor = null;
+  doorDefs.forEach(d => {
+    const dx = (player.x + player.w/2) - (d.col * T + T/2);
+    const dy = (player.y + player.h/2) - (d.row * T + T);
+    if (Math.abs(dx) < 36 && Math.abs(dy) < 50) nearDoor = d;
+  });
+
+  if (nearDoor && (keys[' '] || keys['Enter'])) {
+    const a = ASSIGNMENTS[nearDoor.asgn];
+    if (a.url) window.open(a.url, '_blank');
+    else showComingSoon(a.label);
+    keys[' '] = false;
+    keys['Enter'] = false;
+  }
+}
+
+function spawnParticles(x, y, color) {
+  for (let i = 0; i < 10; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 3;
+    particles.push({
+      x, y, color,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      life: 1,
+      size: 3 + Math.random() * 4,
+    });
+  }
+}
+
+function updateParticles() {
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.15;
+    p.life -= 0.03;
+  });
+}
+
+function showComingSoon(label) {
+  // Flash a notice
+  doorFlash = 120;
+}
+
+let comingSoonTimer = 0;
+let comingSoonLabel = '';
+
+// Draw functions
+function drawTile(col, row, type) {
+  const x = col * T, y = row * T;
+  if (type === 1) {
+    // Wall tile with brick pattern
+    ctx.fillStyle = C.wall;
+    ctx.fillRect(x, y, T, T);
+
+    ctx.fillStyle = C.wallEdge;
+    ctx.fillRect(x, y, T, 2);
+    ctx.fillRect(x, y, 2, T);
+
+    ctx.fillStyle = C.wallHL;
+    ctx.fillRect(x + T - 2, y, 2, T);
+    ctx.fillRect(x, y + T - 2, T, 2);
+
+    // Brick lines
+    ctx.strokeStyle = C.wallEdge;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    if (row % 2 === 0) {
+      ctx.moveTo(x, y + T/2); ctx.lineTo(x+T, y+T/2);
+      ctx.moveTo(x + T/2, y); ctx.lineTo(x+T/2, y+T/2);
+    } else {
+      ctx.moveTo(x, y + T/2); ctx.lineTo(x+T, y+T/2);
+      ctx.moveTo(x + T*0.25, y+T/2); ctx.lineTo(x+T*0.25, y+T);
+      ctx.moveTo(x + T*0.75, y+T/2); ctx.lineTo(x+T*0.75, y+T);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawDoor(d, asgn) {
+  const x = d.col * T;
+  const y = d.row * T;
+  const isNear = nearDoor === d;
+  const a = ASSIGNMENTS[asgn];
+  const comingSoon = !a.url;
+
+  // Door frame
+  ctx.fillStyle = C.doorFrame;
+  ctx.fillRect(x - 2, y - T*2 + 2, T + 4, T*2 + 2);
+
+  // Door body
+  ctx.fillStyle = comingSoon ? '#444' : (isNear ? '#8B6914' : C.doorWood);
+  ctx.fillRect(x + 2, y - T*2 + 4, T - 4, T*2 - 2);
+
+  // Door panels
+  if (!comingSoon) {
+    ctx.fillStyle = isNear ? '#9B7924' : '#7B5910';
+    ctx.fillRect(x + 5, y - T*2 + 7, T - 10, T - 5);
+    ctx.fillRect(x + 5, y - T + 2,   T - 10, T - 7);
+  } else {
+    ctx.fillStyle = '#555';
+    ctx.fillRect(x + 5, y - T*2 + 7, T - 10, T*2 - 10);
+    // Lock icon
+    ctx.fillStyle = '#888';
+    ctx.fillRect(x + T/2 - 5, y - T + 2, 10, 8);
+    ctx.fillStyle = '#666';
+    ctx.beginPath();
+    ctx.arc(x + T/2, y - T - 2, 6, Math.PI, 0);
+    ctx.fill();
+  }
+
+  // Knob
+  ctx.fillStyle = comingSoon ? '#666' : C.doorKnob;
+  ctx.beginPath();
+  ctx.arc(x + T - 8, y - T/2, 3, 0, Math.PI*2);
+  ctx.fill();
+
+  // Glow if near
+  if (isNear) {
+    ctx.save();
+    ctx.globalAlpha = 0.3 + 0.2 * Math.sin(Date.now() / 200);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(x - 4, y - T*2, T + 8, T*2 + 2);
+    ctx.restore();
+  }
+
+  // Label above door
+  ctx.save();
+  ctx.fillStyle = isNear ? '#ffd700' : (comingSoon ? '#666' : '#aaa');
+  ctx.font = `bold 9px "Press Start 2P", monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText(a.label, x + T/2, y - T*2 - 8);
+  if (isNear && !comingSoon) {
+    ctx.fillStyle = '#ffd700aa';
+    ctx.font = '12px VT323, monospace';
+    ctx.fillText('SPACE to enter', x + T/2, y - T*2 - 20);
+  }
+  if (isNear && comingSoon) {
+    ctx.fillStyle = '#f88';
+    ctx.font = '14px VT323, monospace';
+    ctx.fillText('COMING SOON', x + T/2, y - T*2 - 20);
+  }
+  ctx.restore();
+
+  // Assignment title tooltip when near
+  if (isNear) {
+    const tw = ctx.measureText(a.title).width + 20;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(x + T/2 - tw/2 - 4, y - T*2 - 42, tw + 8, 18);
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px VT323, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(a.title, x + T/2, y - T*2 - 29);
+    ctx.restore();
+  }
+}
+
+function drawPlayer() {
+  const px = player.x, py = player.y;
+  const pw = player.w, ph = player.h;
+  ctx.save();
+
+  // Bob animation
+  const bob = player.onGround ? Math.sin(player.frame * Math.PI / 2) * 1 : 0;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(px + pw/2, py + ph + 2, pw/2 - 2, 4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Body
+  const bodyColor = '#4fc3f7';
+  ctx.fillStyle = bodyColor;
+  ctx.fillRect(px + 3, py + 6 + bob, pw - 6, ph - 10);
+
+  // Head
+  ctx.fillStyle = '#81d4fa';
+  ctx.fillRect(px + 2, py + bob, pw - 4, 12);
+
+  // Eyes
+  const eyeOff = player.dir === 1 ? 4 : -4;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px + pw/2 + eyeOff - 4, py + 3 + bob, 5, 4);
+
+  // Pupil
+  ctx.fillStyle = '#111';
+  ctx.fillRect(px + pw/2 + eyeOff - 3 + (player.dir === 1 ? 1 : -1), py + 4 + bob, 2, 2);
+
+  // Feet
+  ctx.fillStyle = '#0288d1';
+  if (player.onGround) {
+    const footAnim = Math.sin(player.frame * Math.PI / 2) * 2;
+    ctx.fillRect(px + 3, py + ph - 5, 7, 5);
+    ctx.fillRect(px + pw - 10, py + ph - 5 + footAnim * 0.5, 7, 5);
+  } else {
+    ctx.fillRect(px + 2, py + ph - 4, 8, 4);
+    ctx.fillRect(px + pw - 10, py + ph - 4, 8, 4);
+  }
+
+  ctx.restore();
+}
+
+function drawGem(g) {
+  if (g.collected) return;
+  const t = Date.now() / 600;
+  const bob = Math.sin(t + g.x) * 3;
+
+  ctx.save();
+  ctx.globalAlpha = 1;
+
+  // Glow
+  ctx.fillStyle = g.color + '44';
+  ctx.beginPath();
+  ctx.arc(g.x, g.y + bob, g.r + 4, 0, Math.PI*2);
+  ctx.fill();
+
+  // Gem diamond shape
+  ctx.fillStyle = g.color;
+  ctx.beginPath();
+  ctx.moveTo(g.x, g.y + bob - g.r);
+  ctx.lineTo(g.x + g.r, g.y + bob);
+  ctx.lineTo(g.x, g.y + bob + g.r);
+  ctx.lineTo(g.x - g.r, g.y + bob);
+  ctx.closePath();
+  ctx.fill();
+
+  // Shine
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(g.x - 1, g.y + bob - g.r + 2);
+  ctx.lineTo(g.x + 2, g.y + bob - 1);
+  ctx.lineTo(g.x, g.y + bob - 1);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.1, p.size * p.life), 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawTorch(x, y) {
+  const flicker = Math.sin(Date.now() / 80 + x) * 0.2;
+
+  // Light pool
+  ctx.save();
+  ctx.globalAlpha = 0.09 + Math.abs(flicker) * 0.03;
+  ctx.fillStyle = '#ff9800';
+  ctx.beginPath();
+  ctx.arc(x, y, 55, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Bracket
+  ctx.fillStyle = '#555';
+  ctx.fillRect(x - 3, y, 6, 8);
+
+  // Fire
+  const fh = Math.max(6, 10 + flicker * 4);
+  ctx.fillStyle = '#ff5722';
+  ctx.beginPath();
+  ctx.ellipse(x, y - fh/2, Math.max(1, 5), Math.max(1, fh/2), 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ff9800';
+  ctx.beginPath();
+  ctx.ellipse(x, y - fh/2, Math.max(1, 3), Math.max(1, fh/3), 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffeb3b';
+  ctx.beginPath();
+  ctx.ellipse(x, y - fh/3, Math.max(0.5, 1.5), Math.max(0.5, fh/5), 0, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawHUD() {
+  // Gem counter
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(8, 8, 110, 30);
+  ctx.strokeStyle = '#ffd70055';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(8, 8, 110, 30);
+
+  ctx.fillStyle = C.gemBlue;
+  ctx.beginPath();
+  ctx.moveTo(16, 18); ctx.lineTo(22, 23); ctx.lineTo(16, 28); ctx.lineTo(10, 23);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 11px "Press Start 2P", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${player.gemCount}/${gems.length}`, 28, 28);
+  ctx.restore();
+
+  // Timer / title top center
+  ctx.save();
+  ctx.font = '13px "Press Start 2P", monospace';
+  ctx.fillStyle = '#ffd70099';
+  ctx.textAlign = 'center';
+  ctx.fillText('CSE 160', W/2, 24);
+  ctx.restore();
+}
+
+function drawBackground() {
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawIvy(x, y) {
+  ctx.strokeStyle = C.ivy;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.bezierCurveTo(x + 10, y + 10, x - 5, y + 20, x + 5, y + 30);
+  ctx.stroke();
+
+  ctx.fillStyle = C.ivy;
+  for (let i = 0; i < 3; i++) {
+    const ly = y + 5 + i * 11;
+    const lx = x + (i % 2 === 0 ? 6 : -4);
+    ctx.beginPath();
+    ctx.ellipse(lx, ly, 4, 3, Math.PI/4 * (i%2===0?1:-1), 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function draw() {
+  drawBackground();
+
+  // Draw tiles
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const t = levelMap[row]?.[col];
+      if (t === 1) drawTile(col, row, 1);
+    }
+  }
+
+
+
+  // Gems
+  gems.forEach(drawGem);
+
+  // Doors
+  doorDefs.forEach(d => drawDoor(d, d.asgn));
+
+  // Player
+  drawPlayer();
+
+  // Particles
+  drawParticles();
+
+  // HUD
+  drawHUD();
+}
+
+let last = 0;
+function loop(ts) {
+  const dt = ts - last; last = ts;
+  if (!gameRunning) return;
+
+  updatePlayer();
+  updateParticles();
+  draw();
+
+  requestAnimationFrame(loop);
+}
+</script>
 </body>
 </html>
