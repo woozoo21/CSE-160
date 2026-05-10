@@ -33,6 +33,8 @@ var FSHADER_SOURCE = `
 let canvas, gl;
 let a_Position, a_TexCoord;
 let u_FragColor, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix;
+
+
 let u_Sampler0, u_Sampler1, u_texColorWeight, u_whichTexture;
 let camera;
 
@@ -188,6 +190,25 @@ function main() {
     else if (ev.key === 'd' || ev.key === 'D') camera.moveRight();
     else if (ev.key === 'q' || ev.key === 'Q') camera.panLeft();
     else if (ev.key === 'e' || ev.key === 'E') camera.panRight();
+
+    else if (ev.key === 'f' || ev.key === 'F') {
+      // find cell in front of camera and add a block
+      let fx = Math.floor(camera.eye.elements[0] + camera.at.elements[0] - camera.eye.elements[0]);
+      let fz = Math.floor(camera.eye.elements[2] + camera.at.elements[2] - camera.eye.elements[2]);
+      let forward = new Vector3();
+      forward.set(camera.at); forward.sub(camera.eye); forward.normalize();
+      let bx = Math.floor(camera.eye.elements[0] + forward.elements[0] * 1.5);
+      let bz = Math.floor(camera.eye.elements[2] + forward.elements[2] * 1.5);
+      if (g_map[bx][bz] > 0) g_map[bx][bz] = 0;
+    }
+    else if (ev.key === 'g' || ev.key === 'G') {
+      // find cell in front of camera and remove a block
+      let forward = new Vector3();
+      forward.set(camera.at); forward.sub(camera.eye); forward.normalize();
+      let bx = Math.floor(camera.eye.elements[0] + forward.elements[0] * 1.5);
+      let bz = Math.floor(camera.eye.elements[2] + forward.elements[2] * 1.5);
+      if (g_map[bx][bz] === 0) g_map[bx][bz] = 2;
+    }
 
     for (let i = 0; i < g_cheese.length; i++) {
       if (g_cheese[i].eaten) continue;
