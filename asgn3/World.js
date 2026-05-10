@@ -55,9 +55,8 @@ let g_lastMouseX = 0;
 let g_lastMouseY = 0;
 
 let g_cheese = [
-  {x: 1,  z: 1,  eaten: false},
+  {x: 1,  z: 5,  eaten: false},
   {x: 5,  z: 1,  eaten: false},
-  {x: 6,  z: 2,  eaten: false},
   {x: 7,  z: 3,  eaten: false},
   {x: 9,  z: 5,  eaten: false},
   {x: 12, z: 6,  eaten: false},
@@ -194,10 +193,13 @@ function main() {
       if (g_cheese[i].eaten) continue;
       let dx   = camera.eye.elements[0] - g_cheese[i].x;
       let dz   = camera.eye.elements[2] - g_cheese[i].z;
-      if (Math.sqrt(dx*dx + dz*dz) < 1.0) {
+      if (Math.sqrt(dx*dx + dz*dz) < 0.6) {
         g_cheese[i].eaten = true;
         let eaten = g_cheese.filter(c => c.eaten).length;
-        document.getElementById('fps').innerHTML = 'YOU WIN! cheese collected: ' + eaten;
+        document.getElementById('cheesecounter').innerHTML = 'Cheese collected: ' + eaten + ' / ' + g_cheese.length;
+        if (eaten === g_cheese.length) {
+          document.getElementById('fps').innerHTML = 'YOU WIN! All cheese collected!';
+        }
       }
     }
     let rdx = camera.eye.elements[0] - 1.5;
@@ -207,7 +209,11 @@ function main() {
     renderScene();
   };
 
+  function gameLoop() {
   renderScene();
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
 }
 
 function drawRat(ox, oy, oz) {
