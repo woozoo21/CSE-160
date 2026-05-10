@@ -11,261 +11,177 @@ var VSHADER_SOURCE = `
     v_TexCoord = a_TexCoord;
   }`;
 
-// fragment shader program
 var FSHADER_SOURCE = `
   precision mediump float;
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
+  uniform sampler2D u_Sampler1;
   uniform float u_texColorWeight;
+  uniform int u_whichTexture;
   varying vec2 v_TexCoord;
   void main() {
-    vec4 texColor = texture2D(u_Sampler0, v_TexCoord);
+    vec4 texColor;
+    if (u_whichTexture == 0) {
+      texColor = texture2D(u_Sampler0, v_TexCoord);
+    } else {
+      texColor = texture2D(u_Sampler1, v_TexCoord);
+    }
     gl_FragColor = mix(u_FragColor, texColor, u_texColorWeight);
   }`;
 
-// global Variables
-let canvas;
-let gl;
-let a_Position;
-let u_FragColor;
-let u_ModelMatrix;
+// Global Variables
+let canvas, gl;
+let a_Position, a_TexCoord;
+let u_FragColor, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix;
+let u_Sampler0, u_Sampler1, u_texColorWeight, u_whichTexture;
+let camera;
 
-let g_globalAngle = 0;
 let g_startTime = performance.now() / 1000.0;
 let g_lastFrameTime = performance.now();
 
+// Rat animation angles
 let g_frontLegAngle = 30;
-let g_backLegAngle = 30;
-let g_crawlPhase = 0;
-
-let g_animMode = 'none';
-let g_bodyBounce = 0;
-
+let g_backLegAngle  = 30;
+let g_crawlPhase    = 0;
 let g_tailBaseAngle = 0;
-let g_tailMidAngle = 0;
+let g_tailMidAngle  = 0;
+let g_tailTipAngle  = 0;
+let g_bodyBounce    = 0;
+let g_eyesClosed    = false;
 
-let g_tailTipAngle = 0;
-
-let g_mouseDown = false;
+// Mouse
+let g_mouseDown  = false;
 let g_lastMouseX = 0;
 let g_lastMouseY = 0;
 
-let g_mouseAngle = 0;
-let g_mouseAngleX = 0;
-let g_rollAngle = 0;
-
-let g_pokeTime = 0;
-let g_eyesClosed = false;
-
-let camera;
-let u_ViewMatrix, u_ProjectionMatrix, u_Sampler0, u_texColorWeight, a_TexCoord;
+let g_cheese = [
+  {x: 1,  z: 1,  eaten: false},
+  {x: 5,  z: 1,  eaten: false},
+  {x: 6,  z: 2,  eaten: false},
+  {x: 7,  z: 3,  eaten: false},
+  {x: 9,  z: 5,  eaten: false},
+  {x: 12, z: 6,  eaten: false},
+  {x: 15, z: 7,  eaten: false},
+  {x: 18, z: 8,  eaten: false},
+  {x: 18, z: 12, eaten: false},
+  {x: 18, z: 16, eaten: false},
+  {x: 18, z: 20, eaten: false},
+  {x: 20, z: 22, eaten: false},
+  {x: 22, z: 24, eaten: false},
+  {x: 26, z: 24, eaten: false},
+  {x: 30, z: 24, eaten: false},
+  {x: 30, z: 28, eaten: false},
+];
 
 let g_map = [
-  [1,1,1,1,1,1,1,1],
-  [1,0,0,0,0,0,0,1],
-  [1,0,2,0,0,3,0,1],
-  [1,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,1],
-  [1,0,3,0,0,2,0,1],
-  [1,0,0,0,0,0,0,1],
-  [1,1,1,1,1,1,1,1],
+  [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
+  [4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4],
+  [4,0,2,2,2,2,0,2,2,2,2,2,0,2,2,2,0,2,2,2,2,0,2,2,2,2,2,0,2,2,0,4],
+  [4,0,2,0,0,0,0,0,0,0,0,2,0,0,0,2,0,2,0,0,0,0,0,0,0,0,2,0,0,2,0,4],
+  [4,0,3,0,3,3,3,3,3,0,3,3,3,3,0,3,0,3,0,3,3,3,3,0,3,0,3,3,0,3,0,4],
+  [4,0,2,0,2,0,0,0,2,0,0,0,0,2,0,2,0,2,0,2,0,0,2,0,2,0,0,2,0,2,0,4],
+  [4,0,2,0,2,0,2,0,2,2,2,2,0,2,0,2,0,2,0,2,0,2,2,0,2,2,0,2,0,2,0,4],
+  [4,0,0,0,2,0,2,0,0,0,0,2,0,0,0,0,0,0,0,2,0,2,0,0,0,2,0,0,0,2,0,4],
+  [4,3,3,0,3,0,3,3,3,0,0,3,3,3,3,3,3,3,0,3,0,3,3,3,0,3,3,3,0,3,0,4],
+  [4,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0,0,2,0,2,0,0,0,2,0,0,0,2,0,2,0,4],
+  [4,0,2,2,2,2,2,0,2,0,2,2,2,2,2,0,0,2,0,2,2,2,0,2,2,2,0,2,0,0,0,4],
+  [4,0,0,0,0,0,2,0,2,0,2,0,0,0,2,2,0,2,0,0,0,2,0,0,0,2,0,2,2,2,0,4],
+  [4,3,3,3,3,0,3,0,0,0,3,0,3,0,0,3,0,0,0,3,0,3,3,3,0,3,0,0,0,3,0,4],
+  [4,0,0,0,2,0,2,2,2,0,2,0,2,2,0,2,2,2,0,2,0,0,0,2,0,2,2,2,0,2,0,4],
+  [4,0,2,0,0,0,0,0,2,0,0,0,0,2,0,0,0,2,0,2,2,2,0,2,0,0,0,2,0,0,0,4],
+  [4,0,2,2,2,2,2,0,2,2,2,2,0,2,2,2,0,2,0,0,0,2,0,2,2,2,0,2,2,2,0,4],
+  [4,0,0,0,0,0,3,0,0,0,0,3,0,0,0,3,0,3,0,3,0,3,0,0,0,3,0,0,0,0,0,4],
+  [4,2,2,2,2,0,2,2,2,2,0,2,2,2,0,2,0,2,0,2,0,2,2,2,0,2,2,2,2,2,0,4],
+  [4,0,0,0,2,0,0,0,0,2,0,0,0,2,0,0,0,2,0,2,0,0,0,2,0,0,0,0,0,2,0,4],
+  [4,0,2,0,2,2,2,0,0,2,2,2,0,2,2,2,2,2,0,2,2,2,0,2,2,2,2,0,0,2,0,4],
+  [4,0,3,0,0,0,3,0,0,0,0,3,0,0,0,0,0,0,0,0,0,3,0,0,0,0,3,0,0,0,0,4],
+  [4,0,2,2,2,0,2,2,2,2,0,2,2,2,2,2,2,2,2,2,0,2,2,2,2,0,2,2,2,2,0,4],
+  [4,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,2,0,0,0,0,0,0,4],
+  [4,2,2,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,2,2,2,0,0,2,2,2,2,2,2,0,4],
+  [4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,3,0,0,0,0,0,0,0,0,0,4],
+  [4,0,2,2,2,2,2,2,2,2,2,2,2,0,2,2,0,2,2,2,0,2,2,2,2,2,2,2,2,2,0,4],
+  [4,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,4],
+  [4,2,2,2,2,2,2,0,2,2,0,2,2,2,0,2,2,2,0,2,2,2,2,2,0,2,2,2,2,2,0,4],
+  [4,0,0,0,0,0,3,0,0,3,0,0,0,3,0,0,0,3,0,0,0,0,3,0,0,0,0,0,0,3,0,4],
+  [4,0,2,2,2,0,2,0,0,2,2,2,0,2,2,2,0,2,2,2,2,0,2,2,2,2,2,2,0,2,0,4],
+  [4,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4],
+  [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
 ];
 
 function setupWebGL() {
   canvas = document.getElementById('webgl');
   gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
-  if (!gl) {
-    console.log('Failed to get the rendering context for WebGL');
-    return;
-  }
+  if (!gl) { console.log('Failed to get WebGL context'); return; }
   gl.enable(gl.DEPTH_TEST);
 }
 
 function connectVariablesToGLSL() {
   if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
-    console.log('Failed to initialize shaders.');
-    return;
+    console.log('Failed to initialize shaders.'); return;
   }
-
-  a_Position = gl.getAttribLocation(gl.program, 'a_Position');
-  if (a_Position < 0) { console.log('Failed to get a_Position'); return; }
-
-  a_TexCoord = gl.getAttribLocation(gl.program, 'a_TexCoord');
-  if (a_TexCoord < 0) { console.log('Failed to get a_TexCoord'); return; }
-
-  u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
-  if (!u_FragColor) { console.log('Failed to get u_FragColor'); return; }
-
-  u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
-  if (!u_ModelMatrix) { console.log('Failed to get u_ModelMatrix'); return; }
-
-  u_ViewMatrix = gl.getUniformLocation(gl.program, 'u_ViewMatrix');
-  if (!u_ViewMatrix) { console.log('Failed to get u_ViewMatrix'); return; }
-
+  a_Position       = gl.getAttribLocation(gl.program,  'a_Position');
+  a_TexCoord       = gl.getAttribLocation(gl.program,  'a_TexCoord');
+  u_FragColor      = gl.getUniformLocation(gl.program, 'u_FragColor');
+  u_ModelMatrix    = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
+  u_ViewMatrix     = gl.getUniformLocation(gl.program, 'u_ViewMatrix');
   u_ProjectionMatrix = gl.getUniformLocation(gl.program, 'u_ProjectionMatrix');
-  if (!u_ProjectionMatrix) { console.log('Failed to get u_ProjectionMatrix'); return; }
-
-  u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
-  if (!u_Sampler0) { console.log('Failed to get u_Sampler0'); return; }
-
+  u_Sampler0       = gl.getUniformLocation(gl.program, 'u_Sampler0');
+  u_Sampler1       = gl.getUniformLocation(gl.program, 'u_Sampler1');
   u_texColorWeight = gl.getUniformLocation(gl.program, 'u_texColorWeight');
-  if (!u_texColorWeight) { console.log('Failed to get u_texColorWeight'); return; }
-
-  var identityM = new Matrix4();
-  gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements);
+  u_whichTexture   = gl.getUniformLocation(gl.program, 'u_whichTexture');
+  gl.uniformMatrix4fv(u_ModelMatrix, false, new Matrix4().elements);
 }
 
-function addActionsForHtmlUI() {
-  document.getElementById('angleSlide').addEventListener('input', function() {
-    g_globalAngle = this.value;
+function initTextures() {
+  var wallImg = new Image();
+  wallImg.onload = function() {
+    var tex = gl.createTexture();
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, wallImg);
+    gl.uniform1i(u_Sampler0, 0);
     renderScene();
-  });
-
-  document.getElementById('frontLegSlide').addEventListener('input', function() {
-    g_frontLegAngle = parseFloat(this.value);
-    renderScene();
-  });
-
-  document.getElementById('backLegSlide').addEventListener('input', function() {
-    g_backLegAngle = parseFloat(this.value);
-    renderScene();
-  });
-
-  document.getElementById('tailBaseSlide').addEventListener('input', function() {
-    g_tailBaseAngle = parseFloat(this.value);
-    renderScene();
-  });
-
-  document.getElementById('tailMidSlide').addEventListener('input', function() {
-    g_tailMidAngle = parseFloat(this.value);
-    renderScene();
-  });
-
-  document.getElementById('tailTipSlide').addEventListener('input', function() {
-    g_tailTipAngle = parseFloat(this.value);
-    renderScene();
-  });
-
-  document.getElementById('runBtn').onclick = function() {
-    g_animMode = 'run';
-    tick();
   };
+  wallImg.src = 'wall.png';
 
-  document.getElementById('crawlBtn').onclick = function() {
-    g_animMode = 'crawl';
-    tick();
+  var cheeseImg = new Image();
+  cheeseImg.onload = function() {
+    var tex = gl.createTexture();
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cheeseImg);
+    gl.uniform1i(u_Sampler1, 1);
   };
-
-  document.getElementById('animOffBtn').onclick = function() {
-    g_animMode = 'none';
-  };
-}
-
-function tick() {
-  if (g_animMode === 'none') return;
-  updateAnimationAngles();
-  renderScene();
-  requestAnimationFrame(tick);
-}
-
-function updateAnimationAngles() {
-  var t = performance.now() / 1000.0 - g_startTime;
-
-  if (g_animMode === 'run') {
-    g_frontLegAngle = 30 + 25 * Math.sin(t * 5);
-    g_backLegAngle  = 30 + 25 * Math.sin(t * 5 + Math.PI);
-    g_crawlPhase    = 0;
-    g_bodyBounce    = -0.04 * Math.sin(t * 5);
-    g_tailBaseAngle = 20 * Math.sin(t * 5);
-    g_tailMidAngle  = 15 * Math.sin(t * 5 + 1);
-    g_tailTipAngle  = 10 * Math.sin(t * 5 + 2);
-
-  } else if (g_animMode === 'crawl') {
-    g_frontLegAngle = 30;
-    g_backLegAngle  = 30;
-    g_crawlPhase    = 22 * Math.sin(t * 2);
-    g_bodyBounce    = -0.015 * Math.abs(Math.sin(t * 2));
-    g_tailBaseAngle = 10 * Math.sin(t * 2);
-    g_tailMidAngle  = 8  * Math.sin(t * 2 + 1);
-    g_tailTipAngle  = 5  * Math.sin(t * 2 + 2);
-
-  } else if (g_animMode === 'poke') {
-    var dt = performance.now() / 1000.0 - g_pokeTime;
-
-    g_eyesClosed    = true;
-    g_bodyBounce    = 0.3 * Math.sin(dt * Math.PI);
-    g_rollAngle     = dt * 360;
-    g_frontLegAngle = 30 + 30 * Math.sin(dt * 8);
-    g_backLegAngle  = 30 + 30 * Math.sin(dt * 8 + Math.PI);
-    g_tailBaseAngle = 40 * Math.sin(dt * 8);
-    g_tailMidAngle  = 30 * Math.sin(dt * 8 + 1);
-    g_tailTipAngle  = 20 * Math.sin(dt * 8 + 2);
-
-    if (dt > 1.0) {
-      g_animMode   = 'none';
-      g_bodyBounce = 0;
-      g_rollAngle  = 0;
-      g_eyesClosed = false;
-    }
-  }
-}
-
-function drawCylinder(matrix, color, sides) {
-  sides = sides || 12;
-  gl.uniform4f(u_FragColor, color[0], color[1], color[2], color[3]);
-  gl.uniformMatrix4fv(u_ModelMatrix, false, matrix.elements);
-
-  var angleStep = 360 / sides;
-  for (var angle = 0; angle < 360; angle += angleStep) {
-    var a1 = angle * Math.PI / 180;
-    var a2 = (angle + angleStep) * Math.PI / 180;
-    var x1 = Math.cos(a1) * 0.5;
-    var y1 = Math.sin(a1) * 0.5;
-    var x2 = Math.cos(a2) * 0.5;
-    var y2 = Math.sin(a2) * 0.5;
-
-    drawTriangle3DUV([x1,y1,0, x2,y2,0, x2,y2,1]);
-    drawTriangle3DUV([x1,y1,0, x2,y2,1, x1,y1,1]);
-    drawTriangle3DUV([0,0,1,   x1,y1,1, x2,y2,1]);
-    drawTriangle3DUV([0,0,0,   x2,y2,0, x1,y1,0]);
-  }
+  cheeseImg.src = 'cheese.png';
 }
 
 function main() {
   setupWebGL();
   connectVariablesToGLSL();
   initTextures();
-  addActionsForHtmlUI();
 
   canvas.onmousedown = function(ev) {
-    if (ev.shiftKey) {
-      g_pokeTime = performance.now() / 1000.0;
-      g_animMode = 'poke';
-      tick();
-    } else {
-      g_mouseDown  = true;
-      g_lastMouseX = ev.clientX;
-      g_lastMouseY = ev.clientY;
-    }
+    g_mouseDown  = true;
+    g_lastMouseX = ev.clientX;
+    g_lastMouseY = ev.clientY;
   };
-
-  canvas.onmouseup = function(ev) {
-    g_mouseDown = false;
-  };
-
+  canvas.onmouseup   = function() { g_mouseDown = false; };
   canvas.onmousemove = function(ev) {
     if (!g_mouseDown) return;
     var dx = ev.clientX - g_lastMouseX;
-    var dy = ev.clientY - g_lastMouseY;
-    g_mouseAngle  = (g_mouseAngle  - dx * 1.0) % 360;
-    g_mouseAngleX = Math.max(-90, Math.min(90, g_mouseAngleX - dy * 1.0));
-    g_lastMouseX  = ev.clientX;
-    g_lastMouseY  = ev.clientY;
+    g_lastMouseX = ev.clientX;
+    g_lastMouseY = ev.clientY;
+    camera.panLeft(dx * 0.3);
     renderScene();
   };
 
   gl.clearColor(0.1, 0.1, 0.1, 1.0);
   camera = new Camera();
+
   document.onkeydown = function(ev) {
     if      (ev.key === 'w' || ev.key === 'W') camera.moveForward();
     else if (ev.key === 's' || ev.key === 'S') camera.moveBackwards();
@@ -273,328 +189,220 @@ function main() {
     else if (ev.key === 'd' || ev.key === 'D') camera.moveRight();
     else if (ev.key === 'q' || ev.key === 'Q') camera.panLeft();
     else if (ev.key === 'e' || ev.key === 'E') camera.panRight();
+
+    for (let i = 0; i < g_cheese.length; i++) {
+      if (g_cheese[i].eaten) continue;
+      let dx   = camera.eye.elements[0] - g_cheese[i].x;
+      let dz   = camera.eye.elements[2] - g_cheese[i].z;
+      if (Math.sqrt(dx*dx + dz*dz) < 1.0) {
+        g_cheese[i].eaten = true;
+        let eaten = g_cheese.filter(c => c.eaten).length;
+        document.getElementById('fps').innerHTML = 'YOU WIN! cheese collected: ' + eaten;
+      }
+    }
+    let rdx = camera.eye.elements[0] - 1.5;
+    let rdz = camera.eye.elements[2] - 4;
+    let bubble = document.getElementById('speechbubble');
+    bubble.style.display = Math.sqrt(rdx*rdx + rdz*rdz) < 4.0 ? 'block' : 'none';
     renderScene();
   };
+
   renderScene();
 }
 
-function renderScene() {
-  var fLAngle  = g_frontLegAngle + g_crawlPhase;
-  var fRAngle  = g_frontLegAngle - g_crawlPhase;
-  var bLAngle  = g_backLegAngle  - g_crawlPhase;
-  var bRAngle  = g_backLegAngle  + g_crawlPhase;
+function drawRat(ox, oy, oz) {
+  // auto-animate using time
+  var t = performance.now() / 1000.0 - g_startTime;
+  var fLAngle = 30 + 25 * Math.sin(t * 5);
+  var fRAngle = 30 + 25 * Math.sin(t * 5 + Math.PI);
+  var bLAngle = 30 + 25 * Math.sin(t * 5 + Math.PI);
+  var bRAngle = 30 + 25 * Math.sin(t * 5);
   var fPawLAng = 0.7 * (fLAngle - 30);
   var fPawRAng = 0.7 * (fRAngle - 30);
   var bPawLAng = 0.7 * (bLAngle - 30);
   var bPawRAng = 0.7 * (bRAngle - 30);
+  var tailBase = 20 * Math.sin(t * 5);
+  var tailMid  = 15 * Math.sin(t * 5 + 1);
+  var tailTip  = 10 * Math.sin(t * 5 + 2);
 
-  gl.uniformMatrix4fv(u_ViewMatrix, false, camera.viewMatrix.elements);
+  // helper: make a cube with offset baked in
+  function rc(color, tx, ty, tz, sx, sy, sz, baseMatrix) {
+    var c = new Cube();
+    c.color = color;
+    if (baseMatrix) {
+      c.matrix = new Matrix4(baseMatrix);
+    } else {
+      c.matrix.translate(ox, oy, oz); // base world offset
+    }
+    c.matrix.translate(tx, ty, tz);
+    c.matrix.scale(sx, sy, sz);
+    c.render();
+    return c;
+  }
+
+  var blue = [0.45, 0.55, 0.65, 1.0];
+  var pink = [0.82, 0.63, 0.66, 1.0];
+
+  rc(blue, -0.2, -0.1, -0.2,  0.4,  0.25, 0.45); // body
+  rc(blue, -0.16,-0.08,-0.36, 0.32, 0.22, 0.16);  // body front taper
+  rc(blue, -0.14,-0.08, 0.24, 0.28, 0.2,  0.14);  // body back taper
+  rc(blue, -0.13,-0.02,-0.48, 0.26, 0.2,  0.12);  // neck
+  rc(blue, -0.22, 0.05,-0.72, 0.44, 0.36, 0.28);  // head
+  rc([0.82,0.65,0.67,1.0], -0.13,0.06,-0.82, 0.26,0.16,0.1); // snout base
+  rc([0.85,0.68,0.70,1.0], -0.1, 0.08,-0.9,  0.2, 0.14,0.08); // snout tip
+  rc([0.9, 0.52,0.55,1.0], -0.06,0.1, -0.94, 0.12,0.09,0.05); // nose
+
+  // ears (cylinders need manual offset)
+  var earLMat = new Matrix4().translate(ox,oy,oz).translate(-0.25,0.42,-0.65).rotate(90,0,0,1).scale(0.35,0.4,0.06);
+  drawCylinder(earLMat, [0.75,0.58,0.6,1.0], 16);
+  var earLIMat = new Matrix4().translate(ox,oy,oz).translate(-0.25,0.42,-0.652).rotate(90,0,0,1).scale(0.22,0.26,0.05);
+  drawCylinder(earLIMat, [0.95,0.78,0.78,1.0], 16);
+  var earRMat = new Matrix4().translate(ox,oy,oz).translate(0.25,0.42,-0.65).rotate(90,0,0,1).scale(0.35,0.4,0.06);
+  drawCylinder(earRMat, [0.75,0.58,0.6,1.0], 16);
+  var earRIMat = new Matrix4().translate(ox,oy,oz).translate(0.25,0.42,-0.652).rotate(90,0,0,1).scale(0.22,0.26,0.05);
+  drawCylinder(earRIMat, [0.95,0.78,0.78,1.0], 16);
+
+  // eyes
+  rc([0.95,0.95,0.95,1.0], -0.16,0.21,-0.73, 0.11,0.11,0.04); // L white
+  rc([0.35,0.2, 0.1, 1.0], -0.148,0.222,-0.74,0.075,0.075,0.03); // L iris
+  rc([0.05,0.05,0.05,1.0], -0.138,0.232,-0.75,0.045,0.045,0.025); // L pupil
+  rc([1.0, 1.0, 1.0, 1.0], -0.125,0.245,-0.76,0.02,0.02,0.02);   // L highlight
+  rc([0.95,0.95,0.95,1.0],  0.05, 0.21,-0.73, 0.11,0.11,0.04);   // R white
+  rc([0.35,0.2, 0.1, 1.0],  0.062,0.222,-0.74,0.075,0.075,0.03); // R iris
+  rc([0.05,0.05,0.05,1.0],  0.072,0.232,-0.75,0.045,0.045,0.025);// R pupil
+  rc([1.0, 1.0, 1.0, 1.0],  0.085,0.245,-0.76,0.02,0.02,0.02);   // R highlight
+
+  // front left leg + paw
+  var fLL = new Cube(); fLL.color = blue;
+  fLL.matrix.translate(ox,oy,oz); fLL.matrix.translate(-0.28,-0.1,-0.35);
+  fLL.matrix.rotate(fLAngle,1,0,0); fLL.matrix.scale(0.12,0.18,0.12); fLL.render();
+  var fPL = new Cube(); fPL.color = pink;
+  fPL.matrix = new Matrix4(fLL.matrix);
+  fPL.matrix.scale(1/0.12,1/0.18,1/0.12);
+  fPL.matrix.translate(-0.02,-0.05,-0.09); fPL.matrix.rotate(fPawLAng,1,0,0);
+  fPL.matrix.scale(0.16,0.05,0.2); fPL.render();
+
+  // front right leg + paw
+  var fLR = new Cube(); fLR.color = blue;
+  fLR.matrix.translate(ox,oy,oz); fLR.matrix.translate(0.16,-0.1,-0.35);
+  fLR.matrix.rotate(fRAngle,1,0,0); fLR.matrix.scale(0.12,0.18,0.12); fLR.render();
+  var fPR = new Cube(); fPR.color = pink;
+  fPR.matrix = new Matrix4(fLR.matrix);
+  fPR.matrix.scale(1/0.12,1/0.18,1/0.12);
+  fPR.matrix.translate(-0.02,-0.05,-0.09); fPR.matrix.rotate(fPawRAng,1,0,0);
+  fPR.matrix.scale(0.16,0.05,0.2); fPR.render();
+
+  // back left leg + paw
+  var bLL = new Cube(); bLL.color = blue;
+  bLL.matrix.translate(ox,oy,oz); bLL.matrix.translate(-0.28,-0.1,0.1);
+  bLL.matrix.rotate(bLAngle,1,0,0); bLL.matrix.scale(0.12,0.18,0.14); bLL.render();
+  var bPL = new Cube(); bPL.color = pink;
+  bPL.matrix = new Matrix4(bLL.matrix);
+  bPL.matrix.scale(1/0.12,1/0.18,1/0.14);
+  bPL.matrix.translate(-0.02,-0.05,-0.1); bPL.matrix.rotate(bPawLAng,1,0,0);
+  bPL.matrix.scale(0.16,0.05,0.24); bPL.render();
+
+  // back right leg + paw
+  var bLR = new Cube(); bLR.color = blue;
+  bLR.matrix.translate(ox,oy,oz); bLR.matrix.translate(0.16,-0.1,0.1);
+  bLR.matrix.rotate(bRAngle,1,0,0); bLR.matrix.scale(0.12,0.18,0.14); bLR.render();
+  var bPR = new Cube(); bPR.color = pink;
+  bPR.matrix = new Matrix4(bLR.matrix);
+  bPR.matrix.scale(1/0.12,1/0.18,1/0.14);
+  bPR.matrix.translate(-0.02,-0.05,-0.1); bPR.matrix.rotate(bPawRAng,1,0,0);
+  bPR.matrix.scale(0.16,0.05,0.24); bPR.render();
+
+  // tail
+  var t1 = new Cube(); t1.color = pink;
+  t1.matrix.translate(ox,oy,oz); t1.matrix.translate(-0.02,-0.05,0.34);
+  t1.matrix.rotate(tailBase,1,0,0); t1.matrix.scale(0.05,0.05,0.2); t1.render();
+
+  var t2 = new Cube(); t2.color = [0.80,0.61,0.64,1.0];
+  t2.matrix = new Matrix4(t1.matrix);
+  t2.matrix.scale(1/0.05,1/0.05,1/0.2);
+  t2.matrix.translate(0,0,0.2); t2.matrix.rotate(tailBase+tailMid,1,0,0);
+  t2.matrix.scale(0.04,0.04,0.2); t2.render();
+
+  var t3 = new Cube(); t3.color = [0.78,0.59,0.62,1.0];
+  t3.matrix = new Matrix4(t2.matrix);
+  t3.matrix.scale(1/0.04,1/0.04,1/0.2);
+  t3.matrix.translate(0,0,0.2); t3.matrix.rotate(tailBase+tailMid+tailTip,1,0,0);
+  t3.matrix.scale(0.03,0.03,0.2); t3.render();
+}
+
+function drawCylinder(matrix, color, sides) {
+  sides = sides || 12;
+  gl.uniform4f(u_FragColor, color[0], color[1], color[2], color[3]);
+  gl.uniformMatrix4fv(u_ModelMatrix, false, matrix.elements);
+  var angleStep = 360 / sides;
+  for (var angle = 0; angle < 360; angle += angleStep) {
+    var a1 = angle * Math.PI / 180;
+    var a2 = (angle + angleStep) * Math.PI / 180;
+    var x1 = Math.cos(a1)*0.5, y1 = Math.sin(a1)*0.5;
+    var x2 = Math.cos(a2)*0.5, y2 = Math.sin(a2)*0.5;
+    drawTriangle3DUV([x1,y1,0, x2,y2,0, x2,y2,1]);
+    drawTriangle3DUV([x1,y1,0, x2,y2,1, x1,y1,1]);
+    drawTriangle3DUV([0,0,1,   x1,y1,1, x2,y2,1]);
+    drawTriangle3DUV([0,0,0,   x2,y2,0, x1,y1,0]);
+  }
+}
+
+function renderScene() {
+  gl.uniformMatrix4fv(u_ViewMatrix,       false, camera.viewMatrix.elements);
   gl.uniformMatrix4fv(u_ProjectionMatrix, false, camera.projectionMatrix.elements);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // --- SKY ---
+  // SKY
+  gl.uniform1i(u_whichTexture, 0);
   gl.uniform1f(u_texColorWeight, 0.0);
   var sky = new Cube();
   sky.color = [0.3, 0.5, 0.9, 1.0];
-  sky.matrix.scale(500, 500, 500);
+  sky.matrix.translate(-0.5,-0.5,-0.5);
+  sky.matrix.scale(1000,1000,1000);
   sky.render();
 
-  // --- GROUND ---
+  // GROUND
   gl.uniform1f(u_texColorWeight, 0.0);
   var ground = new Cube();
   ground.color = [0.3, 0.6, 0.2, 1.0];
-  ground.matrix.translate(0, -0.1, 0);
-  ground.matrix.scale(32, 0.1, 32);
-  ground.render();
+  ground.matrix.translate(0,-0.11,0);
+  ground.matrix.scale(64, 0.1, 64);
+  ground.renderfast();
 
-  // --- WALLS ---
+  // WALLS
+  gl.uniform1i(u_whichTexture, 0);
   gl.uniform1f(u_texColorWeight, 1.0);
   for (let x = 0; x < g_map.length; x++) {
     for (let z = 0; z < g_map[x].length; z++) {
       let h = g_map[x][z];
       for (let y = 0; y < h; y++) {
         let wall = new Cube();
-        wall.color = [1, 1, 1, 1];
+        wall.color = [1,1,1,1];
         wall.matrix.translate(x, y, z);
-        wall.render();
+        wall.renderfast();
       }
     }
   }
+
+  // RAT (near start, auto-animated)
   gl.uniform1f(u_texColorWeight, 0.0);
-  
-  // --- BODY ---
-  var body = new Cube();
-  body.color = [0.45, 0.55, 0.65, 1.0];
-  body.matrix.translate(-0.2, -0.1, -0.2);
-  body.matrix.scale(0.4, 0.25, 0.45);
-  body.render();
+  drawRat(1.5, 0.2, 3);
 
-  // --- BODY FRONT TAPER ---
-  var bodyF = new Cube();
-  bodyF.color = [0.45, 0.55, 0.65, 1.0];
-  bodyF.matrix.translate(-0.16, -0.08, -0.36);
-  bodyF.matrix.scale(0.32, 0.22, 0.16);
-  bodyF.render();
-
-  // --- BODY BACK TAPER ---
-  var bodyB = new Cube();
-  bodyB.color = [0.45, 0.55, 0.65, 1.0];
-  bodyB.matrix.translate(-0.14, -0.08, 0.24);
-  bodyB.matrix.scale(0.28, 0.2, 0.14);
-  bodyB.render();
-
-  // --- NECK ---
-  var neck = new Cube();
-  neck.color = [0.45, 0.55, 0.65, 1.0];
-  neck.matrix.translate(-0.13, -0.02, -0.48);
-  neck.matrix.scale(0.26, 0.2, 0.12);
-  neck.render();
-
-  // --- HEAD ---
-  var head = new Cube();
-  head.color = [0.45, 0.55, 0.65, 1.0];
-  head.matrix.translate(-0.22, 0.05, -0.72);
-  head.matrix.scale(0.44, 0.36, 0.28);
-  head.render();
-
-  // --- SNOUT BASE ---
-  var snoutBase = new Cube();
-  snoutBase.color = [0.82, 0.65, 0.67, 1.0];
-  snoutBase.matrix.translate(-0.13, 0.06, -0.82);
-  snoutBase.matrix.scale(0.26, 0.16, 0.1);
-  snoutBase.render();
-
-  // --- SNOUT TIP ---
-  var snoutTip = new Cube();
-  snoutTip.color = [0.85, 0.68, 0.7, 1.0];
-  snoutTip.matrix.translate(-0.1, 0.08, -0.9);
-  snoutTip.matrix.scale(0.2, 0.14, 0.08);
-  snoutTip.render();
-
-  // --- NOSE ---
-  var nose = new Cube();
-  nose.color = [0.9, 0.52, 0.55, 1.0];
-  nose.matrix.translate(-0.06, 0.1, -0.94);
-  nose.matrix.scale(0.12, 0.09, 0.05);
-  nose.render();
-
-  // --- LEFT EAR - cylinder ---
-  var earLMat = new Matrix4();
-  earLMat.translate(-0.25, 0.42, -0.65);
-  earLMat.rotate(90, 0, 0, 1);
-  earLMat.scale(0.35, 0.4, 0.06);
-  drawCylinder(earLMat, [0.75, 0.58, 0.6, 1.0], 16);
-
-  // --- LEFT EAR INNER ---
-  var earLIMat = new Matrix4();
-  earLIMat.translate(-0.25, 0.42, -0.652);
-  earLIMat.rotate(90, 0, 0, 1);
-  earLIMat.scale(0.22, 0.26, 0.05);
-  drawCylinder(earLIMat, [0.95, 0.78, 0.78, 1.0], 16);
-
-  // --- RIGHT EAR - cylinder ---
-  var earRMat = new Matrix4();
-  earRMat.translate(0.25, 0.42, -0.65);
-  earRMat.rotate(90, 0, 0, 1);
-  earRMat.scale(0.35, 0.4, 0.06);
-  drawCylinder(earRMat, [0.75, 0.58, 0.6, 1.0], 16);
-
-  // --- RIGHT EAR INNER ---
-  var earRIMat = new Matrix4();
-  earRIMat.translate(0.25, 0.42, -0.652);
-  earRIMat.rotate(90, 0, 0, 1);
-  earRIMat.scale(0.22, 0.26, 0.05);
-  drawCylinder(earRIMat, [0.95, 0.78, 0.78, 1.0], 16);
-
-  // --- EYES ---
-  if (g_eyesClosed) {
-    // closed eyes during barrel roll
-    var eyeLC = new Cube();
-    eyeLC.color = [0.1, 0.1, 0.15, 1.0];
-    eyeLC.matrix.translate(-0.2, 0.23, -0.73);
-    eyeLC.matrix.scale(0.11, 0.02, 0.04);
-    eyeLC.render();
-
-    var eyeRC = new Cube();
-    eyeRC.color = [0.1, 0.1, 0.15, 1.0];
-    eyeRC.matrix.translate(0.05, 0.23, -0.73);
-    eyeRC.matrix.scale(0.11, 0.02, 0.04);
-    eyeRC.render();
-  } else {
-    // --- LEFT EYE WHITE ---
-    var eyeLW = new Cube();
-    eyeLW.color = [0.95, 0.95, 0.95, 1.0];
-    eyeLW.matrix.translate(-0.16, 0.21, -0.73);
-    eyeLW.matrix.scale(0.11, 0.11, 0.04);
-    eyeLW.render();
-
-    // --- LEFT EYE IRIS ---
-    var eyeLI = new Cube();
-    eyeLI.color = [0.35, 0.2, 0.1, 1.0];
-    eyeLI.matrix.translate(-0.148, 0.222, -0.74);
-    eyeLI.matrix.scale(0.075, 0.075, 0.03);
-    eyeLI.render();
-
-    // --- LEFT EYE PUPIL ---
-    var eyeLP = new Cube();
-    eyeLP.color = [0.05, 0.05, 0.05, 1.0];
-    eyeLP.matrix.translate(-0.138, 0.232, -0.75);
-    eyeLP.matrix.scale(0.045, 0.045, 0.025);
-    eyeLP.render();
-
-    // --- LEFT EYE HIGHLIGHT ---
-    var eyeLH = new Cube();
-    eyeLH.color = [1.0, 1.0, 1.0, 1.0];
-    eyeLH.matrix.translate(-0.125, 0.245, -0.76);
-    eyeLH.matrix.scale(0.02, 0.02, 0.02);
-    eyeLH.render();
-
-    // --- RIGHT EYE WHITE ---
-    var eyeRW = new Cube();
-    eyeRW.color = [0.95, 0.95, 0.95, 1.0];
-    eyeRW.matrix.translate(0.05, 0.21, -0.73);
-    eyeRW.matrix.scale(0.11, 0.11, 0.04);
-    eyeRW.render();
-
-    // --- RIGHT EYE IRIS ---
-    var eyeRI = new Cube();
-    eyeRI.color = [0.35, 0.2, 0.1, 1.0];
-    eyeRI.matrix.translate(0.062, 0.222, -0.74);
-    eyeRI.matrix.scale(0.075, 0.075, 0.03);
-    eyeRI.render();
-
-    // --- RIGHT EYE PUPIL ---
-    var eyeRP = new Cube();
-    eyeRP.color = [0.05, 0.05, 0.05, 1.0];
-    eyeRP.matrix.translate(0.072, 0.232, -0.75);
-    eyeRP.matrix.scale(0.045, 0.045, 0.025);
-    eyeRP.render();
-
-    // --- RIGHT EYE HIGHLIGHT ---
-    var eyeRH = new Cube();
-    eyeRH.color = [1.0, 1.0, 1.0, 1.0];
-    eyeRH.matrix.translate(0.085, 0.245, -0.76);
-    eyeRH.matrix.scale(0.02, 0.02, 0.02);
-    eyeRH.render();
+  // CHEESE
+  gl.uniform1i(u_whichTexture, 1);
+  gl.uniform1f(u_texColorWeight, 1.0);
+  for (let i = 0; i < g_cheese.length; i++) {
+    if (g_cheese[i].eaten) continue;
+    let c = new Cube();
+    c.color = [1.0, 0.85, 0.0, 1.0];
+    c.matrix.translate(g_cheese[i].x + 0.35, 0.0, g_cheese[i].z + 0.35);
+    c.matrix.scale(0.15, 0.15, 0.15);
+    c.renderfast();
   }
 
-  // --- FRONT LEFT LEG ---
-  var fLegL = new Cube();
-  fLegL.color = [0.45, 0.55, 0.65, 1.0];
-  fLegL.matrix.translate(-0.28, -0.1, -0.35);
-  fLegL.matrix.rotate(fLAngle, 1, 0, 0);
-  fLegL.matrix.scale(0.12, 0.18, 0.12);
-  fLegL.render();
-
-  // --- FRONT LEFT PAW ---
-  var fPawL = new Cube();
-  fPawL.color = [0.82, 0.63, 0.66, 1.0];
-  fPawL.matrix = new Matrix4(fLegL.matrix);
-  fPawL.matrix.scale(1/0.12, 1/0.18, 1/0.12);
-  fPawL.matrix.translate(-0.02, -0.05, -0.09);
-  fPawL.matrix.rotate(fPawLAng, 1, 0, 0);
-  fPawL.matrix.scale(0.16, 0.05, 0.2);
-  fPawL.render();
-
-  // --- FRONT RIGHT LEG ---
-  var fLegR = new Cube();
-  fLegR.color = [0.45, 0.55, 0.65, 1.0];
-  fLegR.matrix.translate(0.16, -0.1, -0.35);
-  fLegR.matrix.rotate(fRAngle, 1, 0, 0);
-  fLegR.matrix.scale(0.12, 0.18, 0.12);
-  fLegR.render();
-
-  // --- FRONT RIGHT PAW ---
-  var fPawR = new Cube();
-  fPawR.color = [0.82, 0.63, 0.66, 1.0];
-  fPawR.matrix = new Matrix4(fLegR.matrix);
-  fPawR.matrix.scale(1/0.12, 1/0.18, 1/0.12);
-  fPawR.matrix.translate(-0.02, -0.05, -0.09);
-  fPawR.matrix.rotate(fPawRAng, 1, 0, 0);
-  fPawR.matrix.scale(0.16, 0.05, 0.2);
-  fPawR.render();
-
-  // --- BACK LEFT LEG ---
-  var bLegL = new Cube();
-  bLegL.color = [0.45, 0.55, 0.65, 1.0];
-  bLegL.matrix.translate(-0.28, -0.1, 0.1);
-  bLegL.matrix.rotate(bLAngle, 1, 0, 0);
-  bLegL.matrix.scale(0.12, 0.18, 0.14);
-  bLegL.render();
-
-  // --- BACK LEFT PAW ---
-  var bPawL = new Cube();
-  bPawL.color = [0.82, 0.63, 0.66, 1.0];
-  bPawL.matrix = new Matrix4(bLegL.matrix);
-  bPawL.matrix.scale(1/0.12, 1/0.18, 1/0.14);
-  bPawL.matrix.translate(-0.02, -0.05, -0.1);
-  bPawL.matrix.rotate(bPawLAng, 1, 0, 0);
-  bPawL.matrix.scale(0.16, 0.05, 0.24);
-  bPawL.render();
-
-  // --- BACK RIGHT LEG ---
-  var bLegR = new Cube();
-  bLegR.color = [0.45, 0.55, 0.65, 1.0];
-  bLegR.matrix.translate(0.16, -0.1, 0.1);
-  bLegR.matrix.rotate(bRAngle, 1, 0, 0);
-  bLegR.matrix.scale(0.12, 0.18, 0.14);
-  bLegR.render();
-
-  // --- BACK RIGHT PAW ---
-  var bPawR = new Cube();
-  bPawR.color = [0.82, 0.63, 0.66, 1.0];
-  bPawR.matrix = new Matrix4(bLegR.matrix);
-  bPawR.matrix.scale(1/0.12, 1/0.18, 1/0.14);
-  bPawR.matrix.translate(-0.02, -0.05, -0.1);
-  bPawR.matrix.rotate(bPawRAng, 1, 0, 0);
-  bPawR.matrix.scale(0.16, 0.05, 0.24);
-  bPawR.render();
-
-  // --- TAIL BASE (joint 1) ---
-  var tail1 = new Cube();
-  tail1.color = [0.82, 0.63, 0.66, 1.0];
-  tail1.matrix.translate(-0.02, -0.05, 0.34);
-  tail1.matrix.rotate(g_tailBaseAngle, 1, 0, 0);
-  tail1.matrix.scale(0.05, 0.05, 0.2);
-  tail1.render();
-
-  // --- TAIL MID (joint 2) ---
-  var tail2 = new Cube();
-  tail2.color = [0.80, 0.61, 0.64, 1.0];
-  tail2.matrix = new Matrix4(tail1.matrix);
-  tail2.matrix.scale(1/0.05, 1/0.05, 1/0.2);
-  tail2.matrix.translate(0, 0, 0.2);
-  tail2.matrix.rotate(g_tailBaseAngle + g_tailMidAngle, 1, 0, 0);
-  tail2.matrix.scale(0.04, 0.04, 0.2);
-  tail2.render();
-
-  // --- TAIL TIP (joint 3) ---
-  var tail3 = new Cube();
-  tail3.color = [0.78, 0.59, 0.62, 1.0];
-  tail3.matrix = new Matrix4(tail2.matrix);
-  tail3.matrix.scale(1/0.04, 1/0.04, 1/0.2);
-  tail3.matrix.translate(0, 0, 0.2);
-  tail3.matrix.rotate(g_tailBaseAngle + g_tailMidAngle + g_tailTipAngle, 1, 0, 0);
-  tail3.matrix.scale(0.03, 0.03, 0.2);
-  tail3.render();
-
-  // fps
+  // FPS
   var now = performance.now();
   var elapsed = now - g_lastFrameTime;
   g_lastFrameTime = now;
   document.getElementById('fps').innerHTML = 'FPS: ' + Math.floor(1000/elapsed);
-}
-
-function initTextures() {
-  var image = new Image();
-  image.onload = function() {
-    var texture = gl.createTexture();
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-    gl.uniform1i(u_Sampler0, 0);
-  };
-  image.src = 'wall.png'; 
 }
