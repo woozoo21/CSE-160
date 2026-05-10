@@ -193,8 +193,8 @@ function main() {
     else if (ev.key === 's' || ev.key === 'S') camera.moveBackwards();
     else if (ev.key === 'a' || ev.key === 'A') camera.moveLeft();
     else if (ev.key === 'd' || ev.key === 'D') camera.moveRight();
-    else if (ev.key === 'q' || ev.key === 'Q') camera.panLeft();
-    else if (ev.key === 'e' || ev.key === 'E') camera.panRight();
+    else if (ev.key === 'q' || ev.key === 'Q' || ev.key === 'ArrowLeft') camera.panLeft();
+    else if (ev.key === 'e' || ev.key === 'E' || ev.key === 'ArrowRight') camera.panRight();
 
     else if (ev.key === 'ArrowUp')   camera.panUp();
     else if (ev.key === 'ArrowDown') camera.panDown();
