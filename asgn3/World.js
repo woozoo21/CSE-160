@@ -56,6 +56,11 @@ let g_mouseDown  = false;
 let g_lastMouseX = 0;
 let g_lastMouseY = 0;
 
+let g_won = false;
+let g_ratExcited = false;
+
+let g_wonTime = 0;
+
 let g_cheese = [
   {x: 1,  z: 5,  eaten: false},
   {x: 5,  z: 1,  eaten: false},
@@ -224,14 +229,18 @@ function main() {
         let eaten = g_cheese.filter(c => c.eaten).length;
         document.getElementById('cheesecounter').innerHTML = 'Cheese collected: ' + eaten + ' / ' + g_cheese.length;
         if (eaten === g_cheese.length) {
-          document.getElementById('fps').innerHTML = 'YOU WIN! All cheese collected!';
+          g_won = true;
+          document.getElementById('overlay').style.display = 'block';
+          document.getElementById('overlay').innerHTML = 'WOOHOO! 🎉<br>Bring the cheese back to me!';
         }
       }
     }
+
     let rdx = camera.eye.elements[0] - 1.5;
     let rdz = camera.eye.elements[2] - 4;
     let bubble = document.getElementById('speechbubble');
-    bubble.style.display = Math.sqrt(rdx*rdx + rdz*rdz) < 4.0 ? 'block' : 'none';
+    bubble.style.display = (!g_won && Math.sqrt(rdx*rdx + rdz*rdz) < 4.0) ? 'block' : 'none';
+
     renderScene();
   };
   gameLoop();
@@ -239,7 +248,7 @@ function main() {
 
 function gameLoop() {
   if (!camera) { requestAnimationFrame(gameLoop); return; }
-  
+
   for (let i = 0; i < g_cheese.length; i++) {
     if (g_cheese[i].eaten) continue;
     let dx = camera.eye.elements[0] - g_cheese[i].x;
@@ -247,13 +256,24 @@ function gameLoop() {
     if (Math.sqrt(dx*dx + dz*dz) < 0.6) {
       g_cheese[i].eaten = true;
       let eaten = g_cheese.filter(c => c.eaten).length;
-      document.getElementById('cheesecounter').innerHTML = '🧀 Cheese collected: ' + eaten + ' / ' + g_cheese.length;
+      document.getElementById('cheesecounter').innerHTML = 'Cheese collected: ' + eaten + ' / ' + g_cheese.length;
       if (eaten === g_cheese.length) {
-        document.getElementById('fps').innerHTML = 'YOU WIN! All cheese collected!';
+        g_won = true;
+        g_wonTime = performance.now();
+        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('overlay').innerHTML = 'WOOHOO! 🎉<br>Bring the cheese back to me!';
       }
     }
   }
 
+  if (g_won && !g_ratExcited && (performance.now() - g_wonTime) > 2000) {
+    let rdx = camera.eye.elements[0] - 1.5;
+    let rdz = camera.eye.elements[2] - 3;
+    if (Math.sqrt(rdx*rdx + rdz*rdz) < 1.5) {
+      g_ratExcited = true;
+      document.getElementById('overlay').innerHTML = 'THANK YOU!! <br>You can have umm... only 1 block if you want...';
+    }
+  }
   drawMinimap();
   renderScene();
   requestAnimationFrame(gameLoop);
@@ -262,17 +282,30 @@ function gameLoop() {
 function drawRat(ox, oy, oz) {
   // auto-animate using time
   var t = performance.now() / 1000.0 - g_startTime;
-  var fLAngle = 30 + 25 * Math.sin(t * 5);
-  var fRAngle = 30 + 25 * Math.sin(t * 5 + Math.PI);
-  var bLAngle = 30 + 25 * Math.sin(t * 5 + Math.PI);
-  var bRAngle = 30 + 25 * Math.sin(t * 5);
+  if (g_ratExcited) {
+    fLAngle  = 30 + 40 * Math.sin(t * 10);
+    fRAngle  = 30 + 40 * Math.sin(t * 10 + Math.PI);
+    bLAngle  = 30 + 40 * Math.sin(t * 10 + Math.PI);
+    bRAngle  = 30 + 40 * Math.sin(t * 10);
+    tailBase = 40 * Math.sin(t * 10);
+    tailMid  = 30 * Math.sin(t * 10 + 1);
+    tailTip  = 20 * Math.sin(t * 10 + 2);
+    oy       = oy + 0.1 * Math.abs(Math.sin(t * 8));
+  } 
+  else {
+    fLAngle  = 30 + 25 * Math.sin(t * 5);
+    fRAngle  = 30 + 25 * Math.sin(t * 5 + Math.PI);
+    bLAngle  = 30 + 25 * Math.sin(t * 5 + Math.PI);
+    bRAngle  = 30 + 25 * Math.sin(t * 5);
+    tailBase = 20 * Math.sin(t * 5);
+    tailMid  = 15 * Math.sin(t * 5 + 1);
+    tailTip  = 10 * Math.sin(t * 5 + 2);
+  } 
+
   var fPawLAng = 0.7 * (fLAngle - 30);
   var fPawRAng = 0.7 * (fRAngle - 30);
   var bPawLAng = 0.7 * (bLAngle - 30);
   var bPawRAng = 0.7 * (bRAngle - 30);
-  var tailBase = 20 * Math.sin(t * 5);
-  var tailMid  = 15 * Math.sin(t * 5 + 1);
-  var tailTip  = 10 * Math.sin(t * 5 + 2);
 
   // helper: make a cube with offset baked in
   function rc(color, tx, ty, tz, sx, sy, sz, baseMatrix) {
@@ -483,10 +516,6 @@ function drawMinimap() {
       ctx.fillRect(g_cheese[i].x * size, g_cheese[i].z * size, size, size);
     }
   }
-
-  // draw end goal
-  ctx.fillStyle = 'lime';
-  ctx.fillRect(30 * size, 29 * size, size, size);
 
   // draw player
   var px = Math.floor(camera.eye.elements[0]);
