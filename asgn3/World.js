@@ -191,6 +191,11 @@ function main() {
     else if (ev.key === 'q' || ev.key === 'Q') camera.panLeft();
     else if (ev.key === 'e' || ev.key === 'E') camera.panRight();
 
+    else if (ev.key === 'm' || ev.key === 'M') {
+      var mc = document.getElementById('minimap');
+      mc.style.display = mc.style.display === 'none' ? 'block' : 'none';
+    }
+
     else if (ev.key === 'f' || ev.key === 'F') {
       // find cell in front of camera and add a block
       let fx = Math.floor(camera.eye.elements[0] + camera.at.elements[0] - camera.eye.elements[0]);
@@ -229,12 +234,29 @@ function main() {
     bubble.style.display = Math.sqrt(rdx*rdx + rdz*rdz) < 4.0 ? 'block' : 'none';
     renderScene();
   };
+  gameLoop();
+}
 
-  function gameLoop() {
+function gameLoop() {
+  if (!camera) { requestAnimationFrame(gameLoop); return; }
+  
+  for (let i = 0; i < g_cheese.length; i++) {
+    if (g_cheese[i].eaten) continue;
+    let dx = camera.eye.elements[0] - g_cheese[i].x;
+    let dz = camera.eye.elements[2] - g_cheese[i].z;
+    if (Math.sqrt(dx*dx + dz*dz) < 0.6) {
+      g_cheese[i].eaten = true;
+      let eaten = g_cheese.filter(c => c.eaten).length;
+      document.getElementById('cheesecounter').innerHTML = '🧀 Cheese collected: ' + eaten + ' / ' + g_cheese.length;
+      if (eaten === g_cheese.length) {
+        document.getElementById('fps').innerHTML = 'YOU WIN! All cheese collected!';
+      }
+    }
+  }
+
+  drawMinimap();
   renderScene();
   requestAnimationFrame(gameLoop);
-}
-gameLoop();
 }
 
 function drawRat(ox, oy, oz) {
@@ -432,4 +454,45 @@ function renderScene() {
   var elapsed = now - g_lastFrameTime;
   g_lastFrameTime = now;
   document.getElementById('fps').innerHTML = 'FPS: ' + Math.floor(1000/elapsed);
+}
+
+function drawMinimap() {
+  if (!camera) return
+  var mc = document.getElementById('minimap');
+  var ctx = mc.getContext('2d');
+  var size = 5; // pixels per cell
+
+  ctx.clearRect(0, 0, 160, 160);
+
+  // draw map
+  for (let x = 0; x < 32; x++) {
+    for (let z = 0; z < 32; z++) {
+      if (g_map[x][z] > 0) {
+        ctx.fillStyle = '#8B4513'; // brown for walls
+      } else {
+        ctx.fillStyle = '#222'; // dark for open
+      }
+      ctx.fillRect(x * size, z * size, size, size);
+    }
+  }
+
+  // draw cheese
+  ctx.fillStyle = 'yellow';
+  for (let i = 0; i < g_cheese.length; i++) {
+    if (!g_cheese[i].eaten) {
+      ctx.fillRect(g_cheese[i].x * size, g_cheese[i].z * size, size, size);
+    }
+  }
+
+  // draw end goal
+  ctx.fillStyle = 'lime';
+  ctx.fillRect(30 * size, 29 * size, size, size);
+
+  // draw player
+  var px = Math.floor(camera.eye.elements[0]);
+  var pz = Math.floor(camera.eye.elements[2]);
+  ctx.fillStyle = 'red';
+  ctx.beginPath();
+  ctx.arc(px * size + size/2, pz * size + size/2, size/1.5, 0, Math.PI * 2);
+  ctx.fill();
 }
