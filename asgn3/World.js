@@ -196,6 +196,9 @@ function main() {
     else if (ev.key === 'q' || ev.key === 'Q') camera.panLeft();
     else if (ev.key === 'e' || ev.key === 'E') camera.panRight();
 
+    else if (ev.key === 'ArrowUp')   camera.panUp();
+    else if (ev.key === 'ArrowDown') camera.panDown();
+
     else if (ev.key === 'm' || ev.key === 'M') {
       var mc = document.getElementById('minimap');
       mc.style.display = mc.style.display === 'none' ? 'block' : 'none';

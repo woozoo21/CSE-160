@@ -21,26 +21,34 @@ class Camera {
   }
 
   moveForward(speed = 0.2) {
-    let f = new Vector3(); f.set(this.at); f.sub(this.eye); f.normalize(); f.mul(speed);
+    let f = new Vector3(); f.set(this.at); f.sub(this.eye);
+    f.elements[1] = 0; // lock to ground
+    f.normalize(); f.mul(speed);
     this.eye.add(f); this.at.add(f);
     this.updateMatrices();
   }
 
   moveBackwards(speed = 0.2) {
-    let b = new Vector3(); b.set(this.eye); b.sub(this.at); b.normalize(); b.mul(speed);
+    let b = new Vector3(); b.set(this.eye); b.sub(this.at);
+    b.elements[1] = 0; // lock to ground
+    b.normalize(); b.mul(speed);
     this.eye.add(b); this.at.add(b);
     this.updateMatrices();
   }
 
   moveLeft(speed = 0.2) {
-    let f = new Vector3(); f.set(this.at); f.sub(this.eye); f.normalize();
+    let f = new Vector3(); f.set(this.at); f.sub(this.eye);
+    f.elements[1] = 0; // lock to ground
+    f.normalize();
     let s = Vector3.cross(this.up, f); s.normalize(); s.mul(speed);
     this.eye.add(s); this.at.add(s);
     this.updateMatrices();
   }
 
   moveRight(speed = 0.2) {
-    let f = new Vector3(); f.set(this.at); f.sub(this.eye); f.normalize();
+    let f = new Vector3(); f.set(this.at); f.sub(this.eye);
+    f.elements[1] = 0; // lock to ground
+    f.normalize();
     let s = Vector3.cross(f, this.up); s.normalize(); s.mul(speed);
     this.eye.add(s); this.at.add(s);
     this.updateMatrices();
@@ -56,4 +64,21 @@ class Camera {
   }
 
   panRight(alpha = 3) { this.panLeft(-alpha); }
+
+  panUp(alpha = 3) {
+  let f = new Vector3(); f.set(this.at); f.sub(this.eye);
+  let right = new Vector3([
+    f.elements[1] * this.up.elements[2] - f.elements[2] * this.up.elements[1],
+    f.elements[2] * this.up.elements[0] - f.elements[0] * this.up.elements[2],
+    f.elements[0] * this.up.elements[1] - f.elements[1] * this.up.elements[0]
+  ]);
+  right.normalize();
+  let rot = new Matrix4();
+  rot.setRotate(alpha, right.elements[0], right.elements[1], right.elements[2]);
+  let f2 = rot.multiplyVector3(f);
+  this.at.set(this.eye); this.at.add(f2);
+  this.updateMatrices();
+}
+
+panDown(alpha = 3) { this.panUp(-alpha); }
 }
