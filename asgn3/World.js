@@ -520,11 +520,22 @@ function drawMinimap() {
     }
   }
 
-  // draw player
-  var px = Math.floor(camera.eye.elements[0]);
-  var pz = Math.floor(camera.eye.elements[2]);
+  // draw player as arrow showing direction
+  var px = camera.eye.elements[0] * size;
+  var pz = camera.eye.elements[2] * size;
+  var fx = camera.at.elements[0] - camera.eye.elements[0];
+  var fz = camera.at.elements[2] - camera.eye.elements[2];
+  var angle = Math.atan2(fz, fx);
+
+  ctx.save();
+  ctx.translate(px, pz);
+  ctx.rotate(angle);
   ctx.fillStyle = 'red';
   ctx.beginPath();
-  ctx.arc(px * size + size/2, pz * size + size/2, size/1.5, 0, Math.PI * 2);
+  ctx.moveTo(6, 0);   // tip of arrow
+  ctx.lineTo(-5, 4);  // bottom left
+  ctx.lineTo(-5, -4); // bottom right
+  ctx.closePath();
   ctx.fill();
+  ctx.restore();
 }
