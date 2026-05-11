@@ -165,6 +165,7 @@ function initTextures() {
     gl.uniform1i(u_Sampler1, 1);
   };
   cheeseImg.src = 'cheese.png';
+  //comment this for cheese.png on cheese
 }
 
 function main() {
@@ -605,7 +606,8 @@ function drawOBJ(data, x, y, z, scale) {
   mat.scale(scale, scale, scale);
   gl.uniformMatrix4fv(u_ModelMatrix, false, mat.elements);
   gl.uniform1i(u_whichTexture, 1);
-  gl.uniform1f(u_texColorWeight, 1);
+  gl.uniform1f(u_texColorWeight, 1); // for cheese.png
+  // gl.uniform1f(u_texColorWeight, 0.0); // for untextured original
   gl.uniform4f(u_FragColor, 1.0, 0.85, 0.0, 1.0);
 
   var vBuf = gl.createBuffer();
