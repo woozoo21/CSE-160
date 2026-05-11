@@ -227,7 +227,7 @@ function main() {
       if (g_cheese[i].eaten) continue;
       let dx   = camera.eye.elements[0] - g_cheese[i].x;
       let dz   = camera.eye.elements[2] - g_cheese[i].z;
-      if (Math.sqrt(dx*dx + dz*dz) < 0.6) {
+      if (Math.sqrt(dx*dx + dz*dz) < 0.8) {
         g_cheese[i].eaten = true;
         let eaten = g_cheese.filter(c => c.eaten).length;
         document.getElementById('cheesecounter').innerHTML = 'Cheese collected: ' + eaten + ' / ' + g_cheese.length;
