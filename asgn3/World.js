@@ -512,6 +512,24 @@ function drawMinimap() {
     }
   }
 
+// draw rat on minimap
+  var rx = 1.5 * size;
+  var rz = 3 * size;
+  // left ear
+  ctx.fillStyle = '#ffb6c1';
+  ctx.beginPath();
+  ctx.arc(rx - 4, rz - 4, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // right ear
+  ctx.beginPath();
+  ctx.arc(rx + 4, rz - 4, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // head
+  ctx.fillStyle = '#aaaaaa';
+  ctx.beginPath();
+  ctx.arc(rx, rz, 4, 0, Math.PI * 2);
+  ctx.fill();
+  
   // draw cheese
   ctx.fillStyle = 'yellow';
   for (let i = 0; i < g_cheese.length; i++) {
