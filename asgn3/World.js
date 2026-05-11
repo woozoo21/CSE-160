@@ -279,7 +279,7 @@ function gameLoop() {
     let rdz = camera.eye.elements[2] - 3;
     if (Math.sqrt(rdx*rdx + rdz*rdz) < 1.5) {
       g_ratExcited = true;
-      document.getElementById('overlay').innerHTML = 'THANK YOU!! <br>You can have umm... only 1 block if you want...';
+      document.getElementById('overlay').innerHTML = 'THANK YOU!! <br>You can have umm... only 1 block of cheese if you want...';
     }
   }
   drawMinimap();
