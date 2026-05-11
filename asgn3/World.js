@@ -61,6 +61,8 @@ let g_ratExcited = false;
 
 let g_wonTime = 0;
 
+let g_cheeseOBJ = null;
+
 let g_cheese = [
   {x: 1,  z: 5,  eaten: false},
   {x: 5,  z: 1,  eaten: false},
@@ -170,6 +172,8 @@ function main() {
   connectVariablesToGLSL();
   initTextures();
 
+  loadOBJ('cheesetriangle.obj').then(data => { g_cheeseOBJ = data; });
+
   canvas.onmousedown = function(ev) {
     g_mouseDown  = true;
     g_lastMouseX = ev.clientX;
@@ -227,7 +231,7 @@ function main() {
       if (g_cheese[i].eaten) continue;
       let dx   = camera.eye.elements[0] - g_cheese[i].x;
       let dz   = camera.eye.elements[2] - g_cheese[i].z;
-      if (Math.sqrt(dx*dx + dz*dz) < 0.8) {
+      if (Math.sqrt(dx*dx + dz*dz) < 0.5) {
         g_cheese[i].eaten = true;
         let eaten = g_cheese.filter(c => c.eaten).length;
         document.getElementById('cheesecounter').innerHTML = 'Cheese collected: ' + eaten + ' / ' + g_cheese.length;
@@ -256,7 +260,7 @@ function gameLoop() {
     if (g_cheese[i].eaten) continue;
     let dx = camera.eye.elements[0] - g_cheese[i].x;
     let dz = camera.eye.elements[2] - g_cheese[i].z;
-    if (Math.sqrt(dx*dx + dz*dz) < 0.6) {
+    if (Math.sqrt(dx*dx + dz*dz) < 0.4) {
       g_cheese[i].eaten = true;
       let eaten = g_cheese.filter(c => c.eaten).length;
       document.getElementById('cheesecounter').innerHTML = 'Cheese collected: ' + eaten + ' / ' + g_cheese.length;
@@ -474,17 +478,23 @@ function renderScene() {
   drawRat(1.5, 0.2, 3);
 
   // CHEESE
-  gl.uniform1i(u_whichTexture, 1);
-  gl.uniform1f(u_texColorWeight, 1.0);
+  // gl.uniform1i(u_whichTexture, 1);
+  // gl.uniform1f(u_texColorWeight, 1.0);
+  // for (let i = 0; i < g_cheese.length; i++) {
+  //   if (g_cheese[i].eaten) continue;
+  //   let c = new Cube();
+  //   c.color = [1.0, 0.85, 0.0, 1.0];
+  //   c.matrix.translate(g_cheese[i].x + 0.35, 0.0, g_cheese[i].z + 0.35);
+  //   c.matrix.scale(0.15, 0.15, 0.15);
+  //   c.renderfast();
+  // }
+
+  // CHEESE
+  let t = performance.now() / 1000.0;
   for (let i = 0; i < g_cheese.length; i++) {
     if (g_cheese[i].eaten) continue;
-    let c = new Cube();
-    c.color = [1.0, 0.85, 0.0, 1.0];
-    c.matrix.translate(g_cheese[i].x + 0.35, 0.0, g_cheese[i].z + 0.35);
-    c.matrix.scale(0.15, 0.15, 0.15);
-    c.renderfast();
+    drawOBJ(g_cheeseOBJ, g_cheese[i].x + 0.35, 0.04 + 0.05 * Math.sin(t * 2 + i), g_cheese[i].z + 0.35, 0.04);
   }
-
   // FPS
   var now = performance.now();
   var elapsed = now - g_lastFrameTime;
@@ -556,4 +566,59 @@ function drawMinimap() {
   ctx.closePath();
   ctx.fill();
   ctx.restore();
+}
+
+async function loadOBJ(url) {
+  const response = await fetch(url);
+  const text = await response.text();
+  const verts = [], uvs = [], normals = [];
+  const outVerts = [], outUVs = [];
+
+  text.split('\n').forEach(line => {
+    const parts = line.trim().split(/\s+/);
+    if (parts[0] === 'v')  verts.push([parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])]);
+    if (parts[0] === 'vt') uvs.push([parseFloat(parts[1]), parseFloat(parts[2])]);
+    if (parts[0] === 'f') {
+      const indices = parts.slice(1).map(p => {
+        const idx = p.split('/');
+        const v = verts[parseInt(idx[0]) - 1];
+        const uIdx = parseInt(idx[1]);
+        const u = (!isNaN(uIdx) && uvs[uIdx - 1]) ? uvs[uIdx - 1] : [0, 0];
+        return { v, u };
+      });
+      // fan triangulation — handles tris and quads
+      for (let i = 1; i < indices.length - 1; i++) {
+        [indices[0], indices[i], indices[i + 1]].forEach(pt => {
+          outVerts.push(...pt.v);
+          outUVs.push(...pt.u);
+        });
+      }
+    }
+  });
+  return { verts: outVerts, uvs: outUVs };
+}
+
+function drawOBJ(data, x, y, z, scale) {
+  if (!data) return;
+  var mat = new Matrix4();
+  mat.translate(x, y, z);
+  mat.scale(scale, scale, scale);
+  gl.uniformMatrix4fv(u_ModelMatrix, false, mat.elements);
+  gl.uniform1i(u_whichTexture, 1);
+  gl.uniform1f(u_texColorWeight, 1);
+  gl.uniform4f(u_FragColor, 1.0, 0.85, 0.0, 1.0);
+
+  var vBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data.verts), gl.DYNAMIC_DRAW);
+  gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(a_Position);
+
+  var uvBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data.uvs), gl.DYNAMIC_DRAW);
+  gl.vertexAttribPointer(a_TexCoord, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(a_TexCoord);
+
+  gl.drawArrays(gl.TRIANGLES, 0, data.verts.length / 3);
 }
