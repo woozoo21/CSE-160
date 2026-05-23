@@ -21,8 +21,8 @@ var FSHADER_SOURCE = `
   precision mediump float;
   varying vec2 v_TexCoord;
   varying vec3 v_Normal;
-  uniform vec3 u_lightColor;
   varying vec4 v_VertPos;
+  uniform vec3 u_lightColor;
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform sampler2D u_Sampler1;
@@ -30,6 +30,10 @@ var FSHADER_SOURCE = `
   uniform vec3 u_lightPos;
   uniform vec3 u_cameraPos;
   uniform bool u_lightOn;
+  uniform vec3 u_spotLightPos;
+  uniform vec3 u_spotLightDir;
+  uniform float u_spotCutoff;
+  uniform bool u_spotOn;
   void main() {
     if (u_whichTexture == -3) {
       gl_FragColor = vec4((v_Normal + 1.0) / 2.0, 1.0);
@@ -45,17 +49,30 @@ var FSHADER_SOURCE = `
       gl_FragColor = vec4(1.0, 0.2, 0.2, 1.0);
     }
 
+    vec3 N = normalize(v_Normal);
+    vec3 E = normalize(u_cameraPos - vec3(v_VertPos));
+
     if (u_lightOn) {
-      vec3 lightVector = u_lightPos - vec3(v_VertPos);
-      vec3 L = normalize(lightVector);
-      vec3 N = normalize(v_Normal);
+      vec3 L = normalize(u_lightPos - vec3(v_VertPos));
       float nDotL = max(dot(N, L), 0.0);
       vec3 R = reflect(-L, N);
-      vec3 E = normalize(u_cameraPos - vec3(v_VertPos));
       float specular = pow(max(dot(E, R), 0.0), 10.0);
       vec3 diffuse = vec3(gl_FragColor) * u_lightColor * nDotL * 0.7;
       vec3 ambient = vec3(gl_FragColor) * 0.3;
       gl_FragColor = vec4(specular * u_lightColor + diffuse + ambient, 1.0);
+    }
+
+    if (u_spotOn) {
+      vec3 spotVec = normalize(u_spotLightPos - vec3(v_VertPos));
+      float spotDot = dot(spotVec, normalize(u_spotLightDir));
+      if (spotDot > u_spotCutoff) {
+        float intensity = (spotDot - u_spotCutoff) / (1.0 - u_spotCutoff);
+        float snDotL = max(dot(N, spotVec), 0.0);
+        vec3 SR = reflect(-spotVec, N);
+        float sSpecular = pow(max(dot(E, SR), 0.0), 10.0) * 2.0;
+        vec3 sDiffuse = vec3(gl_FragColor) * snDotL * intensity * 0.7;
+        gl_FragColor = vec4(vec3(gl_FragColor) + sSpecular * intensity + sDiffuse, 1.0);
+      }
     }
   }`;
 
@@ -162,6 +179,9 @@ let g_wallVertCount = 0;  // for fast fps
 let g_lightAnimOn = true;
 let g_lightColor = [1.0, 1.0, 1.0];
 
+let g_spotOn = true;
+let u_spotLightPos, u_spotLightDir, u_spotCutoff, u_spotOn;
+
 function setupWebGL() {
   canvas = document.getElementById('webgl');
   gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
@@ -191,6 +211,10 @@ function connectVariablesToGLSL() {
   u_lightOn   = gl.getUniformLocation(gl.program, 'u_lightOn');
   u_whichTexture = gl.getUniformLocation(gl.program, 'u_whichTexture');
   u_lightColor = gl.getUniformLocation(gl.program, 'u_lightColor');
+  u_spotLightPos = gl.getUniformLocation(gl.program, 'u_spotLightPos');
+  u_spotLightDir = gl.getUniformLocation(gl.program, 'u_spotLightDir');
+  u_spotCutoff = gl.getUniformLocation(gl.program, 'u_spotCutoff');
+  u_spotOn = gl.getUniformLocation(gl.program, 'u_spotOn');
 }
 
 function initTextures() {
@@ -207,17 +231,17 @@ function initTextures() {
   };
   wallImg.src = 'wall.png';
 
-  var cheeseImg = new Image();
-  cheeseImg.onload = function() {
-    var tex = gl.createTexture();
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cheeseImg);
-    gl.uniform1i(u_Sampler1, 1);
-  };
-  cheeseImg.src = 'cheese.png';
+  // var cheeseImg = new Image();
+  // cheeseImg.onload = function() {
+  //   var tex = gl.createTexture();
+  //   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+  //   gl.activeTexture(gl.TEXTURE1);
+  //   gl.bindTexture(gl.TEXTURE_2D, tex);
+  //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  //   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cheeseImg);
+  //   gl.uniform1i(u_Sampler1, 1);
+  // };
+  // cheeseImg.src = 'cheese.png';
   //comment this for cheese.png on cheese
 }
 
@@ -507,6 +531,10 @@ function renderScene() {
   gl.uniform3f(u_cameraPos, camera.eye.elements[0], camera.eye.elements[1], camera.eye.elements[2]);
   gl.uniform1i(u_lightOn,   g_lightOn);
   gl.uniform3f(u_lightColor, g_lightColor[0], g_lightColor[1], g_lightColor[2]);
+  gl.uniform3f(u_spotLightPos, 1, 1, 4);
+  gl.uniform3fv(u_spotLightDir, new Float32Array([0, 0, 1]));
+  gl.uniform1f(u_spotCutoff, Math.cos(30 * Math.PI / 180));
+  gl.uniform1i(u_spotOn, g_spotOn);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // SKY
@@ -636,30 +664,33 @@ async function loadOBJ(url) {
   const response = await fetch(url);
   const text = await response.text();
   const verts = [], uvs = [], normals = [];
-  const outVerts = [], outUVs = [];
+  const outVerts = [], outUVs = [], outNormals = [];
 
   text.split('\n').forEach(line => {
     const parts = line.trim().split(/\s+/);
     if (parts[0] === 'v')  verts.push([parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])]);
     if (parts[0] === 'vt') uvs.push([parseFloat(parts[1]), parseFloat(parts[2])]);
+    if (parts[0] === 'vn') normals.push([parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])]);
     if (parts[0] === 'f') {
       const indices = parts.slice(1).map(p => {
         const idx = p.split('/');
-        const v = verts[parseInt(idx[0]) - 1];
+        const v  = verts[parseInt(idx[0]) - 1];
         const uIdx = parseInt(idx[1]);
-        const u = (!isNaN(uIdx) && uvs[uIdx - 1]) ? uvs[uIdx - 1] : [0, 0];
-        return { v, u };
+        const nIdx = parseInt(idx[2]);
+        const u  = (!isNaN(uIdx) && uvs[uIdx-1])     ? uvs[uIdx-1]     : [0,0];
+        const n  = (!isNaN(nIdx) && normals[nIdx-1])  ? normals[nIdx-1] : [0,1,0];
+        return { v, u, n };
       });
-      // fan triangulation — handles tris and quads
       for (let i = 1; i < indices.length - 1; i++) {
-        [indices[0], indices[i], indices[i + 1]].forEach(pt => {
+        [indices[0], indices[i], indices[i+1]].forEach(pt => {
           outVerts.push(...pt.v);
           outUVs.push(...pt.u);
+          outNormals.push(...pt.n);
         });
       }
     }
   });
-  return { verts: outVerts, uvs: outUVs };
+  return { verts: outVerts, uvs: outUVs, normals: outNormals };
 }
 
 function drawOBJ(data, x, y, z, scale) {
@@ -668,8 +699,13 @@ function drawOBJ(data, x, y, z, scale) {
   mat.translate(x, y, z);
   mat.scale(scale, scale, scale);
   gl.uniformMatrix4fv(u_ModelMatrix, false, mat.elements);
-  gl.uniform1i(u_whichTexture, 1);
-  // gl.uniform1f(u_texColorWeight, 0.0); // for untextured original
+
+  var normalMat = new Matrix4();
+  normalMat.setInverseOf(mat);
+  normalMat.transpose();
+  gl.uniformMatrix4fv(u_NormalMatrix, false, normalMat.elements);
+
+  gl.uniform1i(u_whichTexture, -2);
   gl.uniform4f(u_FragColor, 1.0, 0.85, 0.0, 1.0);
 
   var vBuf = gl.createBuffer();
@@ -686,8 +722,10 @@ function drawOBJ(data, x, y, z, scale) {
 
   var nBuf = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, nBuf);
-  var dummyNormals = new Float32Array(data.verts.length).fill(0);
-  gl.bufferData(gl.ARRAY_BUFFER, dummyNormals, gl.DYNAMIC_DRAW);
+  var normalData = data.normals && data.normals.length > 0
+    ? new Float32Array(data.normals)
+    : new Float32Array(data.verts.length).fill(0);
+  gl.bufferData(gl.ARRAY_BUFFER, normalData, gl.DYNAMIC_DRAW);
   gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(a_Normal);
 
