@@ -275,6 +275,9 @@ function main() {
   camera = new Camera();
 
   document.onkeydown = function(ev) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(ev.key)) {
+      ev.preventDefault();
+    }
     if      (ev.key === 'w' || ev.key === 'W') camera.moveForward();
     else if (ev.key === 's' || ev.key === 'S') camera.moveBackwards();
     else if (ev.key === 'a' || ev.key === 'A') camera.moveLeft();

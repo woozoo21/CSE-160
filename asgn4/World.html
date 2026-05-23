@@ -4,79 +4,45 @@
 <meta charset="utf-8">
 <title>Rat Maze</title>
 <style>
-  body { margin: 0; background: #ffffff; }
-  #speechbubble {
-    position: absolute;
-    display: none;
-    background: white;
-    border: 2px solid black;
-    border-radius: 10px;
-    padding: 8px;
-    font-family: monospace;
-    font-size: 12px;
-    max-width: 200px;
-    pointer-events: none;
-    left: 220px;
-    top: 50px;
-  }
-  #controls {
-    color: rgb(48, 0, 0);
-    font-family: monospace;
-    font-size: 12px;
-    position: absolute;
-    top: 420px;
-    left: 0;
-    padding: 8px;
-  }
+  body { margin: 0; background: #111; color: #eee; font-family: monospace; font-size: 12px; }
+  button { margin: 2px; padding: 3px 8px; font-family: monospace; font-size: 12px; cursor: pointer; }
+  input[type=range] { width: 140px; }
+  #ui { padding: 6px; }
+  #ui table td { padding: 2px 6px; }
 </style>
 </head>
 <body onload="main()">
 
 <div id="overlay" style="position:absolute; top:150px; left:50px; color:white; font-family:monospace; font-size:20px; font-weight:bold; text-shadow: 2px 2px black; display:none; text-align:center; width:300px;"></div>
 
-<canvas id="webgl" width="400" height="400">
-  Please use a browser that supports "canvas"
-</canvas>
-
-<canvas id="minimap" width="160" height="160" style="position:absolute; top:238px; left:405px; border: 2px solid white; background:#111; display:none;"></canvas>
-
-<p id="fps"> FPS: --</p>
-<p id="cheesecounter"> Cheese collected: 0 / 15</p>
-
-<br>Light X: <input type="range" min="-10" max="20" value="5" step="0.1" oninput="g_lightPos[0]=parseFloat(this.value)">
-<br>Light Y: <input type="range" min="0" max="10" value="3" step="0.1" oninput="g_lightPos[1]=parseFloat(this.value)">
-<br>Light Z: <input type="range" min="-10" max="20" value="5" step="0.1" oninput="g_lightPos[2]=parseFloat(this.value)">
-<br><button onclick="g_lightOn=!g_lightOn">Toggle Light</button>
-<br><button onclick="toggleNormals()">Toggle Normals</button>
-<br><button onclick="g_lightAnimOn=!g_lightAnimOn">Toggle Light Animation</button>
-<br><button onclick="g_spotOn=!g_spotOn">Toggle Spotlight</button>
-
-<br>Light R: <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[0]=parseFloat(this.value)">
-<br>Light G: <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[1]=parseFloat(this.value)">
-<br>Light B: <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[2]=parseFloat(this.value)">
-
-<p> WASD = move &nbsp;|&nbsp; QE or ←→ or drag mouse = turn &nbsp;|&nbsp; ↑↓ = look up/down</p>
-<p> F = remove block &nbsp;|&nbsp; G = restore block</p>
-<p> M = toggle map</p>
-<p>(move back (S) to start)</p>
-
-<button onclick="toggleNormals()">Toggle Normals</button>
-
-<div style="background: #fffbe6; border: 1px solid #e6d87a; border-radius: 6px; padding: 8px 12px; width: 350px; margin-top: 4px; font-family: monospace; font-size: 13px;">
-  ⚠️ Note: No collision detection yet!!<br>
-  If you find yourself inside a wall (or the rat) don't panic.<br>
-  Use the minimap (M) to find your position and navigate back!
-</div>
-<div style="background: #e6f4ff; border: 1px solid #7ab8e6; border-radius: 6px; padding: 8px 12px; width: 350px; margin-top: 4px; font-family: monospace; font-size: 13px;">
-  WOW Factor:<br>
-  OBJ loader for cheese wedge with cheese texture on it + bobbing animation (sin wave)
-</div>
-
-<div id="speechbubble">
+<canvas id="webgl" width="400" height="400"></canvas>
+<canvas id="minimap" width="160" height="160" style="position:absolute; top:238px; left:405px; border:1px solid #555; background:#111; display:none;"></canvas>
+<div id="speechbubble" style="position:absolute; display:none; background:white; color:black; border:2px solid black; border-radius:10px; padding:8px; font-family:monospace; font-size:12px; max-width:200px; pointer-events:none; left:220px; top:50px;">
   Oops I ate too much cheese and now I can't move!<br>
   Please collect the rest of the cheeses for me.<br>
-  Try not to break the maze as my owner built it...
-  but. destroy it if you must!
+  Try not to break the maze... but destroy it if you must!
+</div>
+
+<div id="ui">
+  <span id="fps">FPS: --</span> &nbsp;|&nbsp; <span id="cheesecounter">Cheese: 0/15</span>
+  <br><br>
+
+  <button onclick="g_lightOn=!g_lightOn">Light on/off</button>
+  <button onclick="g_lightAnimOn=!g_lightAnimOn">Animate light</button>
+  <button onclick="g_spotOn=!g_spotOn">Spotlight on/off</button>
+  <button onclick="toggleNormals()">Normals</button>
+  <br>
+
+  Light X <input type="range" min="-10" max="20" value="5" step="0.1" oninput="g_lightPos[0]=parseFloat(this.value)">
+  Y <input type="range" min="0" max="10" value="3" step="0.1" oninput="g_lightPos[1]=parseFloat(this.value)">
+  Z <input type="range" min="-10" max="20" value="5" step="0.1" oninput="g_lightPos[2]=parseFloat(this.value)">
+  <br>
+  R <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[0]=parseFloat(this.value)">
+  G <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[1]=parseFloat(this.value)">
+  B <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[2]=parseFloat(this.value)">
+  <br><br>
+
+  WASD move &nbsp;|&nbsp; QE/arrows/drag turn &nbsp;|&nbsp; M minimap &nbsp;|&nbsp; F/G add/remove block
 </div>
 
 <script src="lib/webgl-utils.js"></script>
@@ -84,8 +50,8 @@
 <script src="lib/cuon-utils.js"></script>
 <script src="lib/cuon-matrix-cse160.js"></script>
 <script src="Cube.js"></script>
+<script src="Sphere.js"></script>
 <script src="Camera.js"></script>
 <script src="World.js"></script>
-<script src="Sphere.js"></script>
 </body>
 </html>
