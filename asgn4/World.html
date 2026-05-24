@@ -17,11 +17,13 @@
 
 <canvas id="webgl" width="400" height="400"></canvas>
 <canvas id="minimap" width="160" height="160" style="position:absolute; top:238px; left:405px; border:1px solid #555; background:#111; display:none;"></canvas>
-<div id="speechbubble" style="position:absolute; display:none; background:white; color:black; border:2px solid black; border-radius:10px; padding:8px; font-family:monospace; font-size:12px; max-width:200px; pointer-events:none; left:220px; top:50px;">
+<!-- <div id="speechbubble" style="position:absolute; display:none; background:white; color:black; border:2px solid black; border-radius:10px; padding:8px; font-family:monospace; font-size:12px; max-width:200px; pointer-events:none; left:220px; top:50px;">
   Oops I ate too much cheese and now I can't move!<br>
   Please collect the rest of the cheeses for me.<br>
   Try not to break the maze... but destroy it if you must!
-</div>
+</div> -->
+
+
 
 <div id="ui">
   <span id="fps">FPS: --</span> &nbsp;|&nbsp; <span id="cheesecounter">Cheese: 0/15</span>
@@ -37,12 +39,19 @@
   Y <input type="range" min="0" max="10" value="3" step="0.1" oninput="g_lightPos[1]=parseFloat(this.value)">
   Z <input type="range" min="-10" max="20" value="5" step="0.1" oninput="g_lightPos[2]=parseFloat(this.value)">
   <br>
-  R <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[0]=parseFloat(this.value)">
-  G <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[1]=parseFloat(this.value)">
-  B <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[2]=parseFloat(this.value)">
+  Red <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[0]=parseFloat(this.value)">
+  Green <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[1]=parseFloat(this.value)">
+  Blue <input type="range" min="0" max="1" value="1" step="0.01" oninput="g_lightColor[2]=parseFloat(this.value)">
   <br><br>
 
-  WASD move &nbsp;|&nbsp; QE/arrows/drag turn &nbsp;|&nbsp; M minimap &nbsp;|&nbsp; F/G add/remove block
+  WASD move &nbsp;|&nbsp; QE/arrows/drag turn &nbsp;|&nbsp; M minimap
+
+  <br>
+  <br>Sphere: to the left when spawned
+  <br>Light Marker: yellow cube up in the air
+  <br>Spotlight: fixed position pointing at rat on the wall near spawn
+  <br>Cheese OBJ: Cheese hole texture!
+
 </div>
 
 <script src="lib/webgl-utils.js"></script>
