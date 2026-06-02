@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSE160 - Rat Race: Cheese Maze (Three.js)</title>
+<!--
+  ============================================================
+  WOW FACTOR NOTE (for the grader):
+  "Rat Race" is a playable maze game:
+    * A randomly GENERATED maze (recursive backtracker) is the track.
+    * Drive a rat with STEERING controls (W/S throttle, A/D turn) with
+      real wall collision so you can't pass through walls.
+    * Collect cheese cubes = CURRENCY. Hold SHIFT to BOOST, which
+      spends your cheese for extra speed.
+    * Reach the glowing finish gate; a race timer records your run.
+    * Camera follows the rat (mouse still orbits/zooms); a spot light
+      tracks the rat casting moving soft shadows; animated day/night.
+  (Rival AI rats are coming as the next layer.)
+  ============================================================
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+  #info {
+    position: absolute; top: 10px; left: 10px;
+    color: #fff; font-family: monospace; font-size: 13px;
+    background: rgba(0,0,0,0.55); padding: 10px 12px; border-radius: 8px;
+    max-width: 320px; line-height: 1.5; pointer-events: none;
+  }
+  #info b { color: #ffd35a; }
+  #hud { font-size: 16px; color: #ffd35a; }
+  #controls {
+    position: absolute; bottom: 14px; left: 10px;
+    font-family: monospace; display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  #controls button {
+    background: #222; color: #fff; border: 1px solid #555; border-radius: 6px;
+    padding: 8px 12px; font-family: monospace; font-size: 13px; cursor: pointer;
+  }
+  #controls button:hover { background: #333; }
+  #win {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    display: none; color: #fff; font-family: monospace; font-size: 22px;
+    text-align: center; background: rgba(20,20,20,0.92);
+    padding: 24px 32px; border-radius: 14px; border: 2px solid #ffd35a;
+  }
+  #win input {
+    font-family: monospace; font-size: 15px; padding: 7px 10px; border-radius: 6px;
+    border: 1px solid #888; background: #111; color: #fff; width: 160px; margin: 10px 6px 4px;
+  }
+  #win button {
+    font-family: monospace; font-size: 14px; padding: 8px 14px; border-radius: 6px;
+    border: 1px solid #ffd35a; background: #2a2410; color: #ffd35a; cursor: pointer;
+  }
+  #board {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    display: none; color: #fff; font-family: monospace; font-size: 14px;
+    background: rgba(20,20,20,0.94); padding: 20px 26px; border-radius: 14px;
+    border: 2px solid #9fe; min-width: 300px;
+  }
+  #board h3 { margin: 0 0 10px; color: #9fe; }
+  #board ol { margin: 6px 0 14px; padding-left: 26px; line-height: 1.6; }
+  #board .lvlbtns button { font-size: 12px; padding: 5px 9px; margin-right: 5px;
+    background: #222; color: #fff; border: 1px solid #555; border-radius: 5px; cursor: pointer; }
+  #board .close { margin-top: 8px; background: #2a2410; color: #ffd35a;
+    border: 1px solid #ffd35a; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-family: monospace; }
+  #loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    color: #fff; font-family: monospace; font-size: 15px;
+  }
+  #minimap {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.55); border: 2px solid #888; border-radius: 8px;
+  }
+  #gatehint {
+    position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%);
+    display: none; color: #ffd35a; font-family: monospace; font-size: 15px;
+    background: rgba(0,0,0,0.6); padding: 8px 14px; border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <b>🐀 Rat Race: Cheese Maze</b><br>
+  <span style="color:#9fe">Drive:</span> W/S = go &amp; reverse, A/D = turn<br>
+  <span style="color:#9fe">Boost:</span> hold SHIFT<br>
+  <span style="color:#9fe">Camera:</span> drag = orbit, scroll = zoom<br>
+  <div id="level">Level: Easy &nbsp;·&nbsp; Par: 30s</div>
+  <div id="hud">🧀 0/0 &nbsp;|&nbsp; ⏱ 0.0s</div>
+</div>
+
+<div id="controls">
+  <button id="btnEasy">Easy</button>
+  <button id="btnMedium">Medium</button>
+  <button id="btnHard">Hard</button>
+  <button id="btnBoard">🏆 Leaderboard</button>
+  <button id="btnNight">Night Mode: Off</button>
+  <button id="btnMinimap">Minimap: On (M)</button>
+  <button id="btnRotate">Auto-Rotate: Off</button>
+</div>
+
+<canvas id="minimap" width="170" height="170"></canvas>
+<div id="gatehint">🔒 Collect all the cheese to open the gate!</div>
+
+<div id="win">
+  <div id="winMsg"></div>
+  <div><input id="nameInput" placeholder="Enter your name" maxlength="14"><button id="saveBtn">Save time</button></div>
+  <div id="saveMsg" style="font-size:14px;color:#9fe;min-height:18px"></div>
+</div>
+
+<div id="board">
+  <h3>🏆 Leaderboard</h3>
+  <div class="lvlbtns">
+    <button data-lvl="easy">Easy</button>
+    <button data-lvl="medium">Medium</button>
+    <button data-lvl="hard">Hard</button>
+  </div>
+  <div id="boardList"></div>
+  <button class="close" id="boardClose">Close</button>
+</div>
+
+<div id="loading">Loading scene…</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const ASSETS = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples';
+
+// ============================================================
+// 1. RENDERER
+// ============================================================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// ============================================================
+// 2. SCENE + FOG
+// ============================================================
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x9bc4e2, 200, 900);
+
+// ============================================================
+// 3. CAMERA (perspective)
+// ============================================================
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 18, 22);
+
+// ============================================================
+// 4. ORBIT CONTROLS (mouse) — target follows the rat
+// ============================================================
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 8;
+controls.maxDistance = 70;
+
+// ============================================================
+// 5. SKYBOX  — two options:
+//   A) PANORAMA: a single 360° equirectangular photo (2:1 ratio .jpg) next
+//      to index.html. Best for a UC Santa Cruz background — see notes.
+//      Set USE_PANORAMA = true and point PANORAMA_URL at your file.
+//   B) CUBEMAP: a ready-made 6-image sky from the Three.js examples.
+//      Pick a folder in CUBE below. (Different folders, see comment.)
+// ============================================================
+const USE_PANORAMA = false;                 // <-- flip to true once you have a campus .jpg
+const PANORAMA_URL  = './ucsc.jpg';         // your 360 photo (equirectangular, 2:1)
+const CUBE = 'SwedishRoyalCastle';          // this folder uses px/nx naming (below)
+
+let skybox;
+function onSky() { document.getElementById('loading').style.display = 'none'; }
+function skyFail() { scene.background = new THREE.Color(0x87b6e8); }
+
+if (USE_PANORAMA) {
+  skybox = new THREE.TextureLoader().load(PANORAMA_URL, (tex) => {
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    scene.background = tex; scene.environment = tex; onSky();
+  }, undefined, skyFail);
+} else {
+  const cubeLoader = new THREE.CubeTextureLoader();
+  cubeLoader.setPath(`${ASSETS}/textures/cube/${CUBE}/`);
+  // NOTE: SwedishRoyalCastle / pisa / Park3Med use px/nx/py/ny/pz/nz.
+  //       Bridge2 / MilkyWay use posx/negx/posy/negy/posz/negz instead.
+  skybox = cubeLoader.load(
+    ['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg'],
+    onSky, undefined, skyFail
+  );
+  skybox.colorSpace = THREE.SRGBColorSpace;
+  scene.background = skybox;
+  scene.environment = skybox;
+}
+
+// ============================================================
+// 6. LIGHTS (5 types)
+// ============================================================
+const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambient);
+const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x4a6b2a, 0.6);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 2.6);
+sun.position.set(30, 50, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { near: 1, far: 200, left: -70, right: 70, top: 70, bottom: -70 });
+scene.add(sun); scene.add(sun.target);
+const pointLamp = new THREE.PointLight(0xffaa55, 0, 60);
+pointLamp.position.set(0, 12, 0);
+scene.add(pointLamp);
+const spot = new THREE.SpotLight(0xfff4d6, 60, 70, Math.PI / 6, 0.4, 1);
+spot.castShadow = true;
+spot.shadow.mapSize.set(1024, 1024);
+scene.add(spot); scene.add(spot.target);
+
+// ============================================================
+// 7. TEXTURED GROUND
+// ============================================================
+const texLoader = new THREE.TextureLoader();
+const grass = texLoader.load(`${ASSETS}/textures/terrain/grasslight-big.jpg`);
+grass.colorSpace = THREE.SRGBColorSpace;
+grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
+grass.repeat.set(60, 60);
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(600, 600),
+  new THREE.MeshStandardMaterial({ map: grass })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// shared textured material for maze walls (textured shape requirement)
+const crateTex = texLoader.load(`${ASSETS}/textures/crate.gif`);
+crateTex.colorSpace = THREE.SRGBColorSpace;
+const wallMat = new THREE.MeshStandardMaterial({ map: crateTex });
+
+// ============================================================
+// 8. MAZE GENERATION (recursive backtracker -> perfect maze)
+//    grid[r][c] === true  means WALL.  Open cells are the track.
+// ============================================================
+const CELL = 4;            // world size of one grid cell
+const WALL_H = 3;          // wall height
+// --- difficulty levels: maze size (cells) + par time + fixed seed ---
+//   The seed makes each level ALWAYS generate the same maze + cheese
+//   layout, so everyone races the identical track (fair leaderboard).
+const LEVELS = {
+  easy:   { cw: 6,  ch: 6,  par: 30, label: 'Easy',   seed: 1337 },
+  medium: { cw: 9,  ch: 9,  par: 55, label: 'Medium', seed: 24601 },
+  hard:   { cw: 13, ch: 13, par: 95, label: 'Hard',   seed: 90210 },
+};
+let levelKey = 'easy';
+let CW = LEVELS.easy.cw, CH = LEVELS.easy.ch, par = LEVELS.easy.par;
+let GW, GH, grid;          // grid dimensions (incl. walls) + data
+
+// seeded random generator (mulberry32) — same seed -> same sequence
+function makeRNG(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const wallGeo = new THREE.BoxGeometry(CELL, WALL_H, CELL);
+let mazeGroup = new THREE.Group();
+scene.add(mazeGroup);
+
+// convert grid coords <-> world coords (maze centered on origin)
+const toWorldX = (c) => (c - (GW - 1) / 2) * CELL;
+const toWorldZ = (r) => (r - (GH - 1) / 2) * CELL;
+const toCol = (x) => Math.round(x / CELL + (GW - 1) / 2);
+const toRow = (z) => Math.round(z / CELL + (GH - 1) / 2);
+
+function isWall(x, z) {
+  const c = toCol(x), r = toRow(z);
+  if (r < 0 || r >= GH || c < 0 || c >= GW) return true;
+  return grid[r][c];
+}
+// rat collision: blocked if any corner of its radius sits in a wall
+function blocked(x, z) {
+  const rad = 1.1;
+  return isWall(x + rad, z + rad) || isWall(x - rad, z + rad) ||
+         isWall(x + rad, z - rad) || isWall(x - rad, z - rad);
+}
+
+let startPos = new THREE.Vector3();
+let finishPos = new THREE.Vector3();
+let finishGate;
+
+function generateMaze() {
+  const rand = makeRNG(LEVELS[levelKey].seed);   // deterministic per level
+  GW = 2 * CW + 1; GH = 2 * CH + 1;
+  grid = Array.from({ length: GH }, () => Array(GW).fill(true));
+  const stack = [[1, 1]]; grid[1][1] = false;
+  const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]];
+  while (stack.length) {
+    const [r, c] = stack[stack.length - 1];
+    const opts = [];
+    for (const [dr, dc] of dirs) {
+      const nr = r + dr, nc = c + dc;
+      if (nr > 0 && nr < GH - 1 && nc > 0 && nc < GW - 1 && grid[nr][nc]) opts.push([nr, nc, dr, dc]);
+    }
+    if (opts.length) {
+      const [nr, nc, dr, dc] = opts[(rand() * opts.length) | 0];
+      grid[r + dr / 2][c + dc / 2] = false; grid[nr][nc] = false;
+      stack.push([nr, nc]);
+    } else stack.pop();
+  }
+
+  // rebuild wall meshes
+  scene.remove(mazeGroup);
+  mazeGroup = new THREE.Group();
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+    if (grid[r][c]) {
+      const w = new THREE.Mesh(wallGeo, wallMat);
+      w.position.set(toWorldX(c), WALL_H / 2, toWorldZ(r));
+      w.receiveShadow = true;          // walls receive (not cast) -> keeps shadows cheap
+      mazeGroup.add(w);
+    }
+  }
+  scene.add(mazeGroup);
+
+  startPos.set(toWorldX(1), 0.9, toWorldZ(1));
+  finishPos.set(toWorldX(GW - 2), 0.9, toWorldZ(GH - 2));
+
+  // finish gate (TORUS) marker
+  if (finishGate) scene.remove(finishGate);
+  finishGate = new THREE.Mesh(
+    new THREE.TorusGeometry(1.6, 0.3, 16, 40),
+    new THREE.MeshStandardMaterial({ color: 0x33ff88, emissive: 0x0a5530, metalness: 0.4 })
+  );
+  finishGate.position.set(finishPos.x, 2, finishPos.z);
+  finishGate.rotation.x = Math.PI / 2;
+  scene.add(finishGate);
+
+  spawnCheese();
+}
+
+// ============================================================
+// 9. RAT BUILDER (reused for player now, AI rats next step)
+//    Returns a THREE.Group facing +Z.
+// ============================================================
+function buildRat(furColor, accentColor = 0xffb6c1) {
+  const g = new THREE.Group();
+  const fur = new THREE.MeshStandardMaterial({ color: furColor, roughness: 0.8 });
+  const acc = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.7 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  const part = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; g.add(m); return m;
+  };
+  part(new THREE.SphereGeometry(0.7, 20, 20), fur, 0, 0, -0.2, 1.4, 1, 1.6);  // body
+  part(new THREE.SphereGeometry(0.5, 20, 20), fur, 0, 0.1, 0.9);              // head
+  part(new THREE.SphereGeometry(0.25, 14, 14), acc, -0.35, 0.45, 0.85, 1, 1, 0.4);
+  part(new THREE.SphereGeometry(0.25, 14, 14), acc,  0.35, 0.45, 0.85, 1, 1, 0.4);
+  const snout = part(new THREE.ConeGeometry(0.22, 0.5, 14), acc, 0, 0.0, 1.45); snout.rotation.x = Math.PI / 2;
+  part(new THREE.SphereGeometry(0.09, 10, 10), dark, 0, 0.05, 1.7);
+  part(new THREE.SphereGeometry(0.08, 10, 10), dark, -0.2, 0.25, 1.3);
+  part(new THREE.SphereGeometry(0.08, 10, 10), dark,  0.2, 0.25, 1.3);
+  const tail = part(new THREE.CylinderGeometry(0.07, 0.12, 1.8, 8), acc, 0, 0.2, -1.5);
+  tail.rotation.x = -Math.PI / 3;
+  for (const fx of [-0.4, 0.4]) for (const fz of [0.3, -0.7])
+    part(new THREE.SphereGeometry(0.18, 10, 10), acc, fx, -0.55, fz);
+  g.userData.tail = tail;
+  return g;
+}
+const rat = buildRat(0x9b9b9b);
+scene.add(rat);
+
+// ============================================================
+// 10. CHEESE COLLECTIBLES — a .glb model (cube as fallback)
+//   >>> SETUP: download the cheese .glb, put it next to index.html as
+//   cheese.glb. Tune CHEESE_SCALE / CHEESE_Y if it's too big or floating.
+// ============================================================
+const CHEESE_URL   = './cheese.glb';
+const CHEESE_SCALE = 1;          // size of each cheese
+const CHEESE_Y     = 1;          // height off the ground
+const cheeseMat = new THREE.MeshStandardMaterial({ color: 0xffd21e, roughness: 0.5, emissive: 0x3a2a00 });
+const cheeseGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+const cheeses = [];
+let cheeseTemplate = null;        // filled once the model loads
+
+function spawnCheese() {
+  for (const c of cheeses) scene.remove(c);
+  cheeses.length = 0;
+  // collect open cells (skip start & finish)
+  const open = [];
+  for (let r = 1; r < GH - 1; r++) for (let c = 1; c < GW - 1; c++)
+    if (!grid[r][c] && !(r === 1 && c === 1) && !(r === GH - 2 && c === GW - 2)) open.push([r, c]);
+  // shuffle (seeded -> same cheese spots every time for this level)
+  const crand = makeRNG(LEVELS[levelKey].seed + 777);
+  for (let i = open.length - 1; i > 0; i--) { const j = (crand() * (i + 1)) | 0;[open[i], open[j]] = [open[j], open[i]]; }
+  const count = Math.min(14, open.length);
+  for (let i = 0; i < count; i++) {
+    const [r, c] = open[i];
+    let item;
+    if (cheeseTemplate) {                       // use the model if it's loaded
+      item = cheeseTemplate.clone(true);
+      item.scale.setScalar(CHEESE_SCALE);
+      item.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    } else {                                    // otherwise a plain cube
+      item = new THREE.Mesh(cheeseGeo, cheeseMat);
+      item.castShadow = true;
+    }
+    item.position.set(toWorldX(c), CHEESE_Y, toWorldZ(r));
+    item.userData.phase = Math.random() * Math.PI * 2;
+    item.userData.baseY = CHEESE_Y;
+    scene.add(item); cheeses.push(item);
+  }
+  total = cheeses.length;
+}
+
+// load the cheese model, then rebuild the cheeses as model clones
+new GLTFLoader().load(CHEESE_URL, (g) => {
+  cheeseTemplate = g.scene;
+  // brighten the cheese a touch (lighten + gentle self-glow so it pops)
+  cheeseTemplate.traverse((o) => {
+    if (o.isMesh && o.material) {
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => {
+        if (m.color) m.color.lerp(new THREE.Color(0xffffff), 0.18);   // ~18% lighter
+        if ('emissive' in m) { m.emissive = m.color.clone(); m.emissiveIntensity = 0.18; }
+      });
+    }
+  });
+  spawnCheese();
+}, undefined, (e) => console.error('Cheese model failed (using cubes):', e));
+
+// ============================================================
+// 11. CUSTOM TEXTURED 3D MODEL  [RUBRIC: requires ONE textured model]
+//   The rat you DRIVE is the model: load a .glb and attach it to the
+//   moving rat group, hiding the placeholder primitive rat once it loads.
+//   (Until it loads — or if the file is missing — the primitive rat shows,
+//   so you always have something to drive.)
+//   >>> SETUP: download the rat .glb, put it next to index.html as rat.glb.
+//   Tuning knobs if it looks off:
+// ============================================================
+const MODEL_URL   = './rat.glb';
+const MODEL_SCALE = 1;       // size  (this model was huge at 2 — tune to taste)
+const MODEL_Y     = 0;       // raise/lower so the feet touch the ground
+const MODEL_FACE  = 0;       // turn so the NOSE points forward: try Math.PI if it
+                             // drives backwards, or ±Math.PI/2 if sideways
+new GLTFLoader().load(MODEL_URL, (gltf) => {
+  const model = gltf.scene;
+  model.scale.setScalar(MODEL_SCALE);
+  model.rotation.y = MODEL_FACE;
+  model.position.y = MODEL_Y;
+  model.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      // render both sides so thin parts (ears) aren't see-through
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => { if (m) m.side = THREE.DoubleSide; });
+    }
+  });
+  rat.children.slice().forEach((c) => { c.visible = false; });  // hide primitive rat
+  rat.add(model);                                                // attach model to mover
+}, undefined, (e) => console.error('Model load failed (is rat.glb next to index.html?):', e));
+
+// ============================================================
+// 12. HUD + BUTTONS
+// ============================================================
+let collected = 0, total = 0, raceTime = 0, finished = false, started = false;
+const hud = document.getElementById('hud');
+const winEl = document.getElementById('win');
+const gateHint = document.getElementById('gatehint');
+function updateHUD() {
+  hud.textContent = `🧀 ${collected}/${total}  |  ⏱ ${raceTime.toFixed(1)}s`;
+}
+
+let dayNightOn = false, autoRotate = false, nightMode = false, minimapOn = true;
+const levelEl = document.getElementById('level');
+document.getElementById('btnRotate').onclick = (e) => {
+  autoRotate = !autoRotate; controls.autoRotate = autoRotate; controls.autoRotateSpeed = 0.7;
+  e.target.textContent = 'Auto-Rotate: ' + (autoRotate ? 'On' : 'Off');
+};
+document.getElementById('btnNight').onclick = (e) => {
+  nightMode = !nightMode;
+  e.target.textContent = 'Night Mode: ' + (nightMode ? 'On' : 'Off');
+  // swap background/environment ONCE on toggle (cheap; avoids per-frame recompiles)
+  if (nightMode) { scene.background = new THREE.Color(0x000000); scene.environment = null; }
+  else { scene.background = skybox; scene.environment = skybox; }
+};
+
+// ---- difficulty levels ----
+function setLevel(key) {
+  levelKey = key;
+  const L = LEVELS[key];
+  CW = L.cw; CH = L.ch; par = L.par;
+  levelEl.textContent = `Level: ${L.label}  ·  Par: ${L.par}s`;
+  resetRace();
+}
+document.getElementById('btnEasy').onclick   = () => setLevel('easy');
+document.getElementById('btnMedium').onclick = () => setLevel('medium');
+document.getElementById('btnHard').onclick   = () => setLevel('hard');
+
+// ---- leaderboard (saved in your browser via localStorage) ----
+const LB_KEY = 'ratrace_scores_v1';
+const boardEl = document.getElementById('board');
+const boardList = document.getElementById('boardList');
+const nameInput = document.getElementById('nameInput');
+const saveBtn = document.getElementById('saveBtn');
+const saveMsg = document.getElementById('saveMsg');
+function loadScores() { try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch { return []; } }
+function saveScores(a) { try { localStorage.setItem(LB_KEY, JSON.stringify(a)); } catch (e) { console.warn('save failed', e); } }
+function addScore(name, time, lvl) {
+  const a = loadScores();
+  a.push({ name: name.slice(0, 14), time: +time.toFixed(1), lvl });
+  saveScores(a);
+}
+function renderBoard(lvl) {
+  const a = loadScores().filter((s) => s.lvl === lvl).sort((x, y) => x.time - y.time).slice(0, 10);
+  const label = LEVELS[lvl].label;
+  boardList.innerHTML = a.length
+    ? `<p style="color:#9fe">${label} — best times</p><ol>` + a.map((s) => `<li>${s.name} — ${s.time}s</li>`).join('') + '</ol>'
+    : `<p>No times yet for <b>${label}</b>. Be the first!</p>`;
+}
+document.getElementById('btnBoard').onclick = () => { renderBoard(levelKey); boardEl.style.display = 'block'; };
+document.getElementById('boardClose').onclick = () => { boardEl.style.display = 'none'; };
+boardEl.querySelectorAll('.lvlbtns button').forEach((b) => { b.onclick = () => renderBoard(b.dataset.lvl); });
+saveBtn.onclick = () => {
+  const nm = (nameInput.value || 'Anon').trim() || 'Anon';
+  addScore(nm, raceTime, levelKey);
+  saveMsg.textContent = 'Saved! 🧀  Open 🏆 Leaderboard to see standings.';
+  saveBtn.disabled = true; nameInput.disabled = true;
+};
+
+// ---- minimap (2D canvas overlay, like the previous assignment) ----
+const miniCanvas = document.getElementById('minimap');
+const mctx = miniCanvas.getContext('2d');
+const btnMinimap = document.getElementById('btnMinimap');
+function toggleMinimap() {                       // shared by button + the "M" key
+  minimapOn = !minimapOn;
+  miniCanvas.style.display = minimapOn ? 'block' : 'none';
+  btnMinimap.textContent = 'Minimap: ' + (minimapOn ? 'On (M)' : 'Off (M)');
+}
+btnMinimap.onclick = toggleMinimap;
+function drawMinimap() {
+  if (!grid) return;
+  const W = miniCanvas.width, H = miniCanvas.height;
+  mctx.clearRect(0, 0, W, H);
+  const s = Math.min(W / GW, H / GH);
+  const ox = (W - s * GW) / 2, oy = (H - s * GH) / 2;
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+    mctx.fillStyle = grid[r][c] ? '#3a2f25' : '#2e7d32';       // wall : path
+    mctx.fillRect(ox + c * s, oy + r * s, s + 0.5, s + 0.5);
+  }
+  const gateOpen = total > 0 && collected >= total;            // finish square
+  mctx.fillStyle = gateOpen ? '#33ff88' : '#ff5555';
+  mctx.fillRect(ox + toCol(finishPos.x) * s, oy + toRow(finishPos.z) * s, s, s);
+  mctx.fillStyle = '#ffd21e';                                   // cheese dots
+  for (const c of cheeses) {
+    mctx.beginPath();
+    mctx.arc(ox + (c.position.x / CELL + (GW - 1) / 2) * s, oy + (c.position.z / CELL + (GH - 1) / 2) * s,
+             Math.max(1.5, s * 0.3), 0, Math.PI * 2);
+    mctx.fill();
+  }
+  // rat as a heading arrow
+  const rx = ox + (rat.position.x / CELL + (GW - 1) / 2) * s;
+  const ry = oy + (rat.position.z / CELL + (GH - 1) / 2) * s;
+  mctx.save(); mctx.translate(rx, ry); mctx.rotate(Math.PI - yaw);
+  mctx.fillStyle = '#ffffff';
+  mctx.beginPath(); mctx.moveTo(0, -s); mctx.lineTo(-s * 0.6, s * 0.7); mctx.lineTo(s * 0.6, s * 0.7);
+  mctx.closePath(); mctx.fill(); mctx.restore();
+}
+
+// ============================================================
+// 13. KEYBOARD
+// ============================================================
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;         // don't drive while typing a name
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === 'm') toggleMinimap();                 // M toggles the minimap
+  if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+});
+window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+// ============================================================
+// 14. RESET / NEW RACE
+// ============================================================
+function resetRace() {
+  generateMaze();
+  rat.position.copy(startPos);
+  rat.rotation.y = 0;
+  speed = 0; yaw = 0;
+  collected = 0; raceTime = 0; finished = false; started = false;
+  winEl.style.display = 'none';
+  lastRat.copy(rat.position);
+  // place camera behind the start
+  camera.position.set(startPos.x, 18, startPos.z + 22);
+  controls.target.set(startPos.x, 1.5, startPos.z);
+  controls.update();
+  updateHUD();
+}
+
+// ============================================================
+// 15. RESIZE
+// ============================================================
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================================
+// 16. LOOP
+// ============================================================
+const clock = new THREE.Clock();
+let sunAngle = Math.PI / 2.3;                 // near noon (bright) by default
+const dayFog = new THREE.Color(0x9bc4e2), nightFog = new THREE.Color(0x0a0f25), tmpC = new THREE.Color();
+let speed = 0, yaw = 0;
+let lastRat = new THREE.Vector3();
+const fwd = new THREE.Vector3();
+
+resetRace();   // build first maze & place everything
+
+function animate() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.getElapsedTime();
+
+  // ---------- steering controls ----------
+  const accel = 42, friction = 20, turnRate = 2.6;
+  const boosting = !!keys['shift'];
+  const maxSpeed = boosting ? 28 : 15;
+  if (keys['w'] || keys['arrowup'])   speed += accel * dt;
+  else if (keys['s'] || keys['arrowdown']) speed -= accel * dt;
+  else speed -= Math.sign(speed) * Math.min(Math.abs(speed), friction * dt);
+  speed = THREE.MathUtils.clamp(speed, -7, maxSpeed);
+
+  if (Math.abs(speed) > 0.3) {
+    const turn = (keys['a'] || keys['arrowleft'] ? 1 : 0) - (keys['d'] || keys['arrowright'] ? 1 : 0);
+    yaw += turn * turnRate * dt * Math.sign(speed === 0 ? 1 : speed);
+  } else {
+    // allow slow turning in place for maze maneuvering
+    yaw += ((keys['a'] || keys['arrowleft'] ? 1 : 0) - (keys['d'] || keys['arrowright'] ? 1 : 0)) * turnRate * 0.6 * dt;
+  }
+  rat.rotation.y = yaw;
+
+  // ---------- move with wall collision (per-axis sliding) ----------
+  fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
+  const dx = fwd.x * speed * dt, dz = fwd.z * speed * dt;
+  if (!blocked(rat.position.x + dx, rat.position.z)) rat.position.x += dx; else speed *= 0.9;
+  if (!blocked(rat.position.x, rat.position.z + dz)) rat.position.z += dz; else speed *= 0.9;
+  rat.position.y = 0.9 + (Math.abs(speed) > 0.5 ? Math.abs(Math.sin(t * 14)) * 0.12 : 0);
+  rat.userData.tail.rotation.z = Math.sin(t * 9) * 0.3;
+
+  // start the timer on first movement
+  if (!started && Math.abs(speed) > 0.5) started = true;
+  if (started && !finished) { raceTime += dt; }
+
+  // ---------- follow camera (preserve user's orbit offset) ----------
+  const mdx = rat.position.x - lastRat.x, mdz = rat.position.z - lastRat.z;
+  camera.position.x += mdx; camera.position.z += mdz;
+  controls.target.set(rat.position.x, 1.5, rat.position.z);
+  lastRat.copy(rat.position);
+
+  // ---------- spotlight tracks rat ----------
+  spot.position.set(rat.position.x, 16, rat.position.z);
+  spot.target.position.copy(rat.position);
+
+  // ---------- cheese pickup ----------
+  for (let i = cheeses.length - 1; i >= 0; i--) {
+    const c = cheeses[i];
+    c.rotation.y += dt * 1.6;
+    c.position.y = c.userData.baseY + Math.sin(t * 2 + c.userData.phase) * 0.2;
+    if (c.position.distanceTo(rat.position) < 1.6) {
+      scene.remove(c); cheeses.splice(i, 1); collected += 1;
+    }
+  }
+
+  // ---------- finish check (gate is LOCKED until all cheese collected) ----------
+  const gateOpen = total > 0 && collected >= total;
+  if (finishGate) {
+    finishGate.rotation.z += dt * 1.2;
+    finishGate.material.color.set(gateOpen ? 0x33ff88 : 0xff5555);
+    finishGate.material.emissive.set(gateOpen ? 0x0a5530 : 0x551414);
+  }
+  const nearGate = rat.position.distanceTo(finishPos) < 2.4;
+  gateHint.style.display = (nearGate && !gateOpen && !finished) ? 'block' : 'none';
+  if (!finished && nearGate && gateOpen) {
+    finished = true;
+    gateHint.style.display = 'none';
+    const beat = raceTime <= par;
+    document.getElementById('winMsg').innerHTML =
+      `🏁 Finished!<br><span style="font-size:15px">${LEVELS[levelKey].label} &nbsp;·&nbsp; Time: ${raceTime.toFixed(1)}s &nbsp;·&nbsp; Par: ${par}s<br>` +
+      (beat ? '🎉 You beat the par time!' : '⏱ Just over par — try again!') + '</span>';
+    nameInput.value = ''; nameInput.disabled = false; saveBtn.disabled = false; saveMsg.textContent = '';
+    winEl.style.display = 'block';
+  }
+
+  updateHUD();
+  if (minimapOn) drawMinimap();
+
+  // ---------- lighting: Night Mode (flashlight) OR day/night ----------
+  if (nightMode) {
+    // Pitch-black world; the light on the rat is the only source.
+    // --- TUNE: spot.angle = circle SIZE/radius, spot.intensity = BRIGHTNESS ---
+    sun.intensity = 0; ambient.intensity = 0.05; hemi.intensity = 0.03;
+    spot.angle = Math.PI / 7; spot.penumbra = 0.4;   // smaller angle = tighter circle
+    spot.intensity = 420;                            // lower = dimmer
+    pointLamp.color.set(0xffe2b0);
+    pointLamp.intensity = 18;                        // warm glow on the rat
+    pointLamp.distance = 14;                          // how far that glow reaches
+    pointLamp.position.set(rat.position.x, 3, rat.position.z);
+    scene.fog.color.set(0x000000); scene.fog.near = 8; scene.fog.far = 45;
+  } else {
+    scene.fog.near = 200; scene.fog.far = 900;
+    spot.angle = Math.PI / 6; spot.penumbra = 0.4; spot.distance = 70;
+    pointLamp.color.set(0xffaa55);
+    if (dayNightOn) sunAngle += dt * 0.12;
+    sun.position.set(Math.cos(sunAngle) * 60, Math.max(8, Math.sin(sunAngle) * 60), 25);
+    sun.target.position.set(rat.position.x, 0, rat.position.z);
+    const daylight = Math.max(0, Math.sin(sunAngle)), night = 1 - daylight;
+    sun.intensity = 0.6 + daylight * 2.4;
+    sun.color.setHSL(0.09 + daylight * 0.04, 1.0, 0.45 + daylight * 0.2);
+    ambient.intensity = 0.25 + daylight * 0.25;
+    hemi.intensity = 0.3 + daylight * 0.5;
+    pointLamp.intensity = night * 50; pointLamp.position.set(rat.position.x, 12, rat.position.z);
+    spot.intensity = 50 + night * 70;
+    tmpC.copy(nightFog).lerp(dayFog, daylight); scene.fog.color.copy(tmpC);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+renderer.setAnimationLoop(animate);
+</script>
+</body>
+</html>
