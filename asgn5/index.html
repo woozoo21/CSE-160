@@ -394,6 +394,8 @@ const cheeseMat = new THREE.MeshStandardMaterial({ color: 0xffd21e, roughness: 0
 const cheeseGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
 const cheeses = [];
 let cheeseTemplate = null;        // filled once the model loads
+const CHEESE_GLOW = 0.18;         // daytime self-glow (off at night)
+const cheeseMats = [];            // shared materials, so we can dim them at night
 
 function spawnCheese() {
   for (const c of cheeses) scene.remove(c);
@@ -434,7 +436,8 @@ new GLTFLoader().load(CHEESE_URL, (g) => {
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       mats.forEach((m) => {
         if (m.color) m.color.lerp(new THREE.Color(0xffffff), 0.18);   // ~18% lighter
-        if ('emissive' in m) { m.emissive = m.color.clone(); m.emissiveIntensity = 0.18; }
+        if ('emissive' in m) { m.emissive = m.color.clone(); m.emissiveIntensity = nightMode ? 0 : CHEESE_GLOW; }
+        cheeseMats.push(m);
       });
     }
   });
@@ -495,6 +498,8 @@ document.getElementById('btnNight').onclick = (e) => {
   // swap background/environment ONCE on toggle (cheap; avoids per-frame recompiles)
   if (nightMode) { scene.background = new THREE.Color(0x000000); scene.environment = null; }
   else { scene.background = skybox; scene.environment = skybox; }
+  // cheeses glow in the day but go dark at night (only seen inside your light)
+  cheeseMats.forEach((m) => { m.emissiveIntensity = nightMode ? 0 : CHEESE_GLOW; });
 };
 
 // ---- difficulty levels ----
@@ -598,8 +603,8 @@ window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 function resetRace() {
   generateMaze();
   rat.position.copy(startPos);
-  rat.rotation.y = 0;
-  speed = 0; yaw = 0;
+  rat.rotation.y = Math.PI / 2;
+  speed = 0; yaw = Math.PI / 2;
   collected = 0; raceTime = 0; finished = false; started = false;
   winEl.style.display = 'none';
   lastRat.copy(rat.position);
@@ -713,13 +718,13 @@ function animate() {
     // Pitch-black world; the light on the rat is the only source.
     // --- TUNE: spot.angle = circle SIZE/radius, spot.intensity = BRIGHTNESS ---
     sun.intensity = 0; ambient.intensity = 0.05; hemi.intensity = 0.03;
-    spot.angle = Math.PI / 7; spot.penumbra = 0.4;   // smaller angle = tighter circle
+    spot.angle = Math.PI / 10; spot.penumbra = 0.4;  // smaller angle = tighter circle
     spot.intensity = 420;                            // lower = dimmer
     pointLamp.color.set(0xffe2b0);
     pointLamp.intensity = 18;                        // warm glow on the rat
     pointLamp.distance = 14;                          // how far that glow reaches
     pointLamp.position.set(rat.position.x, 3, rat.position.z);
-    scene.fog.color.set(0x000000); scene.fog.near = 8; scene.fog.far = 45;
+    scene.fog.color.set(0x000000); scene.fog.near = 6; scene.fog.far = 30;
   } else {
     scene.fog.near = 200; scene.fog.far = 900;
     spot.angle = Math.PI / 6; spot.penumbra = 0.4; spot.distance = 70;
