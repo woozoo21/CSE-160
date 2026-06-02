@@ -82,9 +82,8 @@
 <body>
 
 <div id="info">
-  <b>🐀 Rat Race: Cheese Maze</b><br>
-  <span style="color:#9fe">Drive:</span> W/S = go &amp; reverse, A/D = turn<br>
-  <span style="color:#9fe">Boost:</span> hold SHIFT<br>
+  <b>Rat Race</b><br>
+  <span style="color:#9fe">Move:</span> W/S = go &amp; reverse, A/D = turn<br>
   <span style="color:#9fe">Camera:</span> drag = orbit, scroll = zoom<br>
   <div id="level">Level: Easy &nbsp;·&nbsp; Par: 30s</div>
   <div id="hud">🧀 0/0 &nbsp;|&nbsp; ⏱ 0.0s</div>
@@ -97,7 +96,6 @@
   <button id="btnBoard">🏆 Leaderboard</button>
   <button id="btnNight">Night Mode: Off</button>
   <button id="btnMinimap">Minimap: On (M)</button>
-  <button id="btnRotate">Auto-Rotate: Off</button>
 </div>
 
 <canvas id="minimap" width="170" height="170"></canvas>
@@ -486,12 +484,8 @@ function updateHUD() {
   hud.textContent = `🧀 ${collected}/${total}  |  ⏱ ${raceTime.toFixed(1)}s`;
 }
 
-let dayNightOn = false, autoRotate = false, nightMode = false, minimapOn = true;
+let dayNightOn = false, nightMode = false, minimapOn = true;
 const levelEl = document.getElementById('level');
-document.getElementById('btnRotate').onclick = (e) => {
-  autoRotate = !autoRotate; controls.autoRotate = autoRotate; controls.autoRotateSpeed = 0.7;
-  e.target.textContent = 'Auto-Rotate: ' + (autoRotate ? 'On' : 'Off');
-};
 document.getElementById('btnNight').onclick = (e) => {
   nightMode = !nightMode;
   e.target.textContent = 'Night Mode: ' + (nightMode ? 'On' : 'Off');
