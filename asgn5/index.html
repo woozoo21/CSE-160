@@ -85,6 +85,7 @@
   <b>Rat Race</b><br>
   <span style="color:#9fe">Move:</span> W/S = go &amp; reverse, A/D = turn<br>
   <span style="color:#9fe">Camera:</span> drag = orbit, scroll = zoom<br>
+  <span style="color:#9fe">Levels:</span> 1 = Easy, 2 = Medium, 3 = Hard<br>
   <div id="level">Level: Easy &nbsp;·&nbsp; Par: 30s</div>
   <div id="hud">🧀 0/0 &nbsp;|&nbsp; ⏱ 0.0s</div>
 </div>
@@ -95,6 +96,7 @@
   <button id="btnHard">Hard</button>
   <button id="btnBoard">🏆 Leaderboard</button>
   <button id="btnFollow">Follow Cam: On</button>
+  <button id="btnSaveCam">Save Cam</button>
   <button id="btnNight">Night Mode: Off</button>
   <button id="btnMinimap">Minimap: On (M)</button>
 </div>
@@ -485,10 +487,19 @@ function updateHUD() {
   hud.textContent = `🧀 ${collected}/${total}  |  ⏱ ${raceTime.toFixed(1)}s`;
 }
 
-let dayNightOn = false, nightMode = false, minimapOn = true, followCam = true;
+let dayNightOn = false, nightMode = false, minimapOn = true, followCam = true, savedCamOffset = null;
 document.getElementById('btnFollow').onclick = (e) => {
   followCam = !followCam;
   e.target.textContent = 'Follow Cam: ' + (followCam ? 'On' : 'Off');
+};
+document.getElementById('btnSaveCam').onclick = (e) => {
+  if (savedCamOffset) {
+    savedCamOffset = null;
+    e.target.textContent = 'Save Cam';
+  } else {
+    savedCamOffset = new THREE.Vector3().subVectors(camera.position, controls.target);
+    e.target.textContent = '✅ Cam Saved';
+  }
 };
 const levelEl = document.getElementById('level');
 document.getElementById('btnNight').onclick = (e) => {
@@ -591,7 +602,10 @@ window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;         // don't drive while typing a name
   const k = e.key.toLowerCase();
   keys[k] = true;
-  if (k === 'm') toggleMinimap();                 // M toggles the minimap
+  if (k === 'm') toggleMinimap();
+  if (k === '1') setLevel('easy');
+  if (k === '2') setLevel('medium');
+  if (k === '3') setLevel('hard');                 // M toggles the minimap
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
 });
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
@@ -676,8 +690,16 @@ function animate() {
     const camZ = rat.position.z - Math.cos(yaw) * camDist;
     camera.position.lerp(new THREE.Vector3(camX, camHeight, camZ), 0.08);
   } else {
-    const mdx = rat.position.x - lastRat.x, mdz = rat.position.z - lastRat.z;
-    camera.position.x += mdx; camera.position.z += mdz;
+    if (savedCamOffset) {
+      camera.position.set(
+        controls.target.x + savedCamOffset.x,
+        controls.target.y + savedCamOffset.y,
+        controls.target.z + savedCamOffset.z
+      );
+    } else {
+      const mdx = rat.position.x - lastRat.x, mdz = rat.position.z - lastRat.z;
+      camera.position.x += mdx; camera.position.z += mdz;
+    }
   }
   controls.target.set(rat.position.x, 1.5, rat.position.z);
   lastRat.copy(rat.position);
