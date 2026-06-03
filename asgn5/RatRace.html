@@ -632,6 +632,13 @@ window.addEventListener('keydown', (e) => {
   if (k === '1') { setLevel('easy');   boardEl.style.display = 'none'; }
   if (k === '2') { setLevel('medium'); boardEl.style.display = 'none'; }
   if (k === '3') { setLevel('hard');   boardEl.style.display = 'none'; }
+  if (k === 'f') document.getElementById('btnFollow').click();
+  if (k === 'g') document.getElementById('btnGhost').click();
+  if (k === 'n') document.getElementById('btnNight').click();
+  if (k === 'l') {
+    if (boardEl.style.display === 'block') boardEl.style.display = 'none';
+    else { renderBoard(levelKey); boardEl.style.display = 'block'; }
+  }
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
 });
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
