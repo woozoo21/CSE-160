@@ -94,6 +94,7 @@
   <button id="btnMedium">Medium</button>
   <button id="btnHard">Hard</button>
   <button id="btnBoard">🏆 Leaderboard</button>
+  <button id="btnFollow">Follow Cam: On</button>
   <button id="btnNight">Night Mode: Off</button>
   <button id="btnMinimap">Minimap: On (M)</button>
 </div>
@@ -484,7 +485,11 @@ function updateHUD() {
   hud.textContent = `🧀 ${collected}/${total}  |  ⏱ ${raceTime.toFixed(1)}s`;
 }
 
-let dayNightOn = false, nightMode = false, minimapOn = true;
+let dayNightOn = false, nightMode = false, minimapOn = true, followCam = true;
+document.getElementById('btnFollow').onclick = (e) => {
+  followCam = !followCam;
+  e.target.textContent = 'Follow Cam: ' + (followCam ? 'On' : 'Off');
+};
 const levelEl = document.getElementById('level');
 document.getElementById('btnNight').onclick = (e) => {
   nightMode = !nightMode;
@@ -664,9 +669,16 @@ function animate() {
   if (!started && Math.abs(speed) > 0.5) started = true;
   if (started && !finished) { raceTime += dt; }
 
-  // ---------- follow camera (preserve user's orbit offset) ----------
-  const mdx = rat.position.x - lastRat.x, mdz = rat.position.z - lastRat.z;
-  camera.position.x += mdx; camera.position.z += mdz;
+  // ---------- follow camera ----------
+  if (followCam) {
+    const camDist = 14, camHeight = 10;
+    const camX = rat.position.x - Math.sin(yaw) * camDist;
+    const camZ = rat.position.z - Math.cos(yaw) * camDist;
+    camera.position.lerp(new THREE.Vector3(camX, camHeight, camZ), 0.08);
+  } else {
+    const mdx = rat.position.x - lastRat.x, mdz = rat.position.z - lastRat.z;
+    camera.position.x += mdx; camera.position.z += mdz;
+  }
   controls.target.set(rat.position.x, 1.5, rat.position.z);
   lastRat.copy(rat.position);
 
