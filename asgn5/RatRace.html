@@ -608,7 +608,8 @@ function drawMinimap() {
   mctx.fillStyle = '#ffd21e';
   for (const c of cheeses) {
     mctx.beginPath();
-    mctx.arc(ox + (c.position.x / CELL + (GW - 1) / 2) * s, oy + (c.position.z / CELL + (GH - 1) / 2) * s,
+    mctx.arc(ox + (c.position.x / CELL + (GW - 1) / 2) * s + s / 2,
+         oy + (c.position.z / CELL + (GH - 1) / 2) * s + s / 2,
              Math.max(1.5, s * 0.3), 0, Math.PI * 2);
     mctx.fill();
   }
