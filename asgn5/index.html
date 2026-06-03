@@ -4,21 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CSE160 - Rat Race: Cheese Maze (Three.js)</title>
-<!--
-  ============================================================
-  WOW FACTOR NOTE (for the grader):
-  "Rat Race" is a playable maze game:
-    * A randomly GENERATED maze (recursive backtracker) is the track.
-    * Drive a rat with STEERING controls (W/S throttle, A/D turn) with
-      real wall collision so you can't pass through walls.
-    * Collect cheese cubes = CURRENCY. Hold SHIFT to BOOST, which
-      spends your cheese for extra speed.
-    * Reach the glowing finish gate; a race timer records your run.
-    * Camera follows the rat (mouse still orbits/zooms); a spot light
-      tracks the rat casting moving soft shadows; animated day/night.
-  (Rival AI rats are coming as the next layer.)
-  ============================================================
--->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
   #info {
@@ -29,6 +14,7 @@
   }
   #info b { color: #ffd35a; }
   #hud { font-size: 16px; color: #ffd35a; }
+  #ghosthud { font-size: 14px; color: #aef; min-height: 18px; }
   #controls {
     position: absolute; bottom: 14px; left: 10px;
     font-family: monospace; display: flex; gap: 8px; flex-wrap: wrap;
@@ -88,6 +74,7 @@
   <span style="color:#9fe">Levels:</span> 1 = Easy, 2 = Medium, 3 = Hard<br>
   <div id="level">Level: Easy &nbsp;·&nbsp; Par: 30s</div>
   <div id="hud">🧀 0/0 &nbsp;|&nbsp; ⏱ 0.0s</div>
+  <div id="ghosthud"></div>
 </div>
 
 <div id="controls">
@@ -97,6 +84,7 @@
   <button id="btnBoard">🏆 Leaderboard</button>
   <button id="btnFollow">Follow Cam: On</button>
   <button id="btnSaveCam">Save Cam</button>
+  <button id="btnGhost">Ghost: On</button>
   <button id="btnNight">Night Mode: Off</button>
   <button id="btnMinimap">Minimap: On (M)</button>
 </div>
@@ -156,13 +144,13 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x9bc4e2, 200, 900);
 
 // ============================================================
-// 3. CAMERA (perspective)
+// 3. CAMERA
 // ============================================================
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 18, 22);
 
 // ============================================================
-// 4. ORBIT CONTROLS (mouse) — target follows the rat
+// 4. ORBIT CONTROLS
 // ============================================================
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -172,16 +160,11 @@ controls.minDistance = 8;
 controls.maxDistance = 70;
 
 // ============================================================
-// 5. SKYBOX  — two options:
-//   A) PANORAMA: a single 360° equirectangular photo (2:1 ratio .jpg) next
-//      to index.html. Best for a UC Santa Cruz background — see notes.
-//      Set USE_PANORAMA = true and point PANORAMA_URL at your file.
-//   B) CUBEMAP: a ready-made 6-image sky from the Three.js examples.
-//      Pick a folder in CUBE below. (Different folders, see comment.)
+// 5. SKYBOX
 // ============================================================
-const USE_PANORAMA = false;                 // <-- flip to true once you have a campus .jpg
-const PANORAMA_URL  = './ucsc.jpg';         // your 360 photo (equirectangular, 2:1)
-const CUBE = 'SwedishRoyalCastle';          // this folder uses px/nx naming (below)
+const USE_PANORAMA = false;
+const PANORAMA_URL  = './ucsc.jpg';
+const CUBE = 'SwedishRoyalCastle';
 
 let skybox;
 function onSky() { document.getElementById('loading').style.display = 'none'; }
@@ -196,8 +179,6 @@ if (USE_PANORAMA) {
 } else {
   const cubeLoader = new THREE.CubeTextureLoader();
   cubeLoader.setPath(`${ASSETS}/textures/cube/${CUBE}/`);
-  // NOTE: SwedishRoyalCastle / pisa / Park3Med use px/nx/py/ny/pz/nz.
-  //       Bridge2 / MilkyWay use posx/negx/posy/negy/posz/negz instead.
   skybox = cubeLoader.load(
     ['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg'],
     onSky, undefined, skyFail
@@ -208,7 +189,7 @@ if (USE_PANORAMA) {
 }
 
 // ============================================================
-// 6. LIGHTS (5 types)
+// 6. LIGHTS
 // ============================================================
 const ambient = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambient);
@@ -244,20 +225,15 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// shared textured material for maze walls (textured shape requirement)
 const crateTex = texLoader.load(`${ASSETS}/textures/crate.gif`);
 crateTex.colorSpace = THREE.SRGBColorSpace;
 const wallMat = new THREE.MeshStandardMaterial({ map: crateTex });
 
 // ============================================================
-// 8. MAZE GENERATION (recursive backtracker -> perfect maze)
-//    grid[r][c] === true  means WALL.  Open cells are the track.
+// 8. MAZE GENERATION
 // ============================================================
-const CELL = 4;            // world size of one grid cell
-const WALL_H = 3;          // wall height
-// --- difficulty levels: maze size (cells) + par time + fixed seed ---
-//   The seed makes each level ALWAYS generate the same maze + cheese
-//   layout, so everyone races the identical track (fair leaderboard).
+const CELL = 4;
+const WALL_H = 3;
 const LEVELS = {
   easy:   { cw: 6,  ch: 6,  par: 30, label: 'Easy',   seed: 1337 },
   medium: { cw: 9,  ch: 9,  par: 55, label: 'Medium', seed: 24601 },
@@ -265,9 +241,8 @@ const LEVELS = {
 };
 let levelKey = 'easy';
 let CW = LEVELS.easy.cw, CH = LEVELS.easy.ch, par = LEVELS.easy.par;
-let GW, GH, grid;          // grid dimensions (incl. walls) + data
+let GW, GH, grid;
 
-// seeded random generator (mulberry32) — same seed -> same sequence
 function makeRNG(seed) {
   let s = seed >>> 0;
   return function () {
@@ -281,7 +256,6 @@ const wallGeo = new THREE.BoxGeometry(CELL, WALL_H, CELL);
 let mazeGroup = new THREE.Group();
 scene.add(mazeGroup);
 
-// convert grid coords <-> world coords (maze centered on origin)
 const toWorldX = (c) => (c - (GW - 1) / 2) * CELL;
 const toWorldZ = (r) => (r - (GH - 1) / 2) * CELL;
 const toCol = (x) => Math.round(x / CELL + (GW - 1) / 2);
@@ -292,7 +266,6 @@ function isWall(x, z) {
   if (r < 0 || r >= GH || c < 0 || c >= GW) return true;
   return grid[r][c];
 }
-// rat collision: blocked if any corner of its radius sits in a wall
 function blocked(x, z) {
   const rad = 1.1;
   return isWall(x + rad, z + rad) || isWall(x - rad, z + rad) ||
@@ -304,7 +277,7 @@ let finishPos = new THREE.Vector3();
 let finishGate;
 
 function generateMaze() {
-  const rand = makeRNG(LEVELS[levelKey].seed);   // deterministic per level
+  const rand = makeRNG(LEVELS[levelKey].seed);
   GW = 2 * CW + 1; GH = 2 * CH + 1;
   grid = Array.from({ length: GH }, () => Array(GW).fill(true));
   const stack = [[1, 1]]; grid[1][1] = false;
@@ -323,14 +296,13 @@ function generateMaze() {
     } else stack.pop();
   }
 
-  // rebuild wall meshes
   scene.remove(mazeGroup);
   mazeGroup = new THREE.Group();
   for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
     if (grid[r][c]) {
       const w = new THREE.Mesh(wallGeo, wallMat);
       w.position.set(toWorldX(c), WALL_H / 2, toWorldZ(r));
-      w.receiveShadow = true;          // walls receive (not cast) -> keeps shadows cheap
+      w.receiveShadow = true;
       mazeGroup.add(w);
     }
   }
@@ -339,7 +311,6 @@ function generateMaze() {
   startPos.set(toWorldX(1), 0.9, toWorldZ(1));
   finishPos.set(toWorldX(GW - 2), 0.9, toWorldZ(GH - 2));
 
-  // finish gate (TORUS) marker
   if (finishGate) scene.remove(finishGate);
   finishGate = new THREE.Mesh(
     new THREE.TorusGeometry(1.6, 0.3, 16, 40),
@@ -351,43 +322,136 @@ function generateMaze() {
 
   spawnCheese();
 }
+
 const rat = new THREE.Group();
 scene.add(rat);
 
 // ============================================================
-// 10. CHEESE COLLECTIBLES — a .glb model (cube as fallback)
-//   >>> SETUP: download the cheese .glb, put it next to index.html as
-//   cheese.glb. Tune CHEESE_SCALE / CHEESE_Y if it's too big or floating.
+// 9. MODEL CONSTANTS  (declared here so ghost loader can use them)
+// ============================================================
+const MODEL_URL   = './rat.glb';
+const MODEL_SCALE = 1;
+const MODEL_Y     = 0;
+const MODEL_FACE  = 0;
+
+// ============================================================
+// GHOST RAT
+// ============================================================
+const GHOST_KEY = 'ratrace_ghost_v1';
+const ghostHud = document.getElementById('ghosthud');
+const ghostRat = new THREE.Group();
+ghostRat.visible = false;
+scene.add(ghostRat);
+
+new GLTFLoader().load(MODEL_URL, (gltf) => {
+  const model = gltf.scene;
+  model.scale.setScalar(MODEL_SCALE);
+  model.rotation.y = MODEL_FACE;
+  model.position.y = MODEL_Y;
+  model.traverse((o) => {
+    if (o.isMesh) {
+      if (Array.isArray(o.material)) {
+        o.material = o.material.map((m) => {
+          const g = m.clone();
+          g.transparent = true; g.opacity = 0.35;
+          g.depthWrite = false; g.side = THREE.DoubleSide;
+          return g;
+        });
+      } else {
+        o.material = o.material.clone();
+        o.material.transparent = true; o.material.opacity = 0.35;
+        o.material.depthWrite = false; o.material.side = THREE.DoubleSide;
+      }
+    }
+  });
+  ghostRat.add(model);
+}, undefined, () => {
+  const fallback = new THREE.Mesh(
+    new THREE.SphereGeometry(0.6, 12, 12),
+    new THREE.MeshStandardMaterial({ color: 0xaaddff, transparent: true, opacity: 0.35, depthWrite: false })
+  );
+  ghostRat.add(fallback);
+});
+
+let ghostOn = true;
+let currentRun = [];
+let ghostRecording = null;
+let ghostBestTime = null;
+
+function ghostKey(lvl) { return `${GHOST_KEY}_${lvl}`; }
+
+function loadGhost(lvl) {
+  try {
+    const raw = localStorage.getItem(ghostKey(lvl));
+    if (!raw) { ghostRecording = null; ghostBestTime = null; return; }
+    const data = JSON.parse(raw);
+    ghostRecording = data.frames;
+    ghostBestTime = data.time;
+  } catch { ghostRecording = null; ghostBestTime = null; }
+}
+
+function saveGhost(lvl, time, frames) {
+  try { localStorage.setItem(ghostKey(lvl), JSON.stringify({ time, frames })); }
+  catch (e) { console.warn('ghost save failed', e); }
+}
+
+function updateGhostHud() {
+  if (!ghostOn) { ghostHud.textContent = ''; return; }
+  ghostHud.textContent = ghostBestTime !== null ? `Ghost: ${ghostBestTime.toFixed(1)}s` : 'Ghost: no best yet';
+}
+
+function tickGhost(t) {
+  if (!ghostOn || !ghostRecording || ghostRecording.length < 2) {
+    ghostRat.visible = false; return;
+  }
+  ghostRat.visible = true;
+  let lo = 0, hi = ghostRecording.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (ghostRecording[mid].t <= t) lo = mid; else hi = mid;
+  }
+  const a = ghostRecording[lo], b = ghostRecording[hi];
+  const span = b.t - a.t;
+  const alpha = span > 0 ? (t - a.t) / span : 0;
+  ghostRat.position.x = a.x + (b.x - a.x) * alpha;
+  ghostRat.position.z = a.z + (b.z - a.z) * alpha;
+  ghostRat.position.y = 0.9;
+  let dyaw = b.yaw - a.yaw;
+  if (dyaw >  Math.PI) dyaw -= Math.PI * 2;
+  if (dyaw < -Math.PI) dyaw += Math.PI * 2;
+  ghostRat.rotation.y = a.yaw + dyaw * alpha;
+}
+
+// ============================================================
+// 10. CHEESE COLLECTIBLES
 // ============================================================
 const CHEESE_URL   = './cheese.glb';
-const CHEESE_SCALE = 1;          // size of each cheese
-const CHEESE_Y     = 1;          // height off the ground
+const CHEESE_SCALE = 1;
+const CHEESE_Y     = 1;
 const cheeseMat = new THREE.MeshStandardMaterial({ color: 0xffd21e, roughness: 0.5, emissive: 0x3a2a00 });
 const cheeseGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
 const cheeses = [];
-let cheeseTemplate = null;        // filled once the model loads
-const CHEESE_GLOW = 0.18;         // daytime self-glow (off at night)
-const cheeseMats = [];            // shared materials, so we can dim them at night
+let cheeseTemplate = null;
+const CHEESE_GLOW = 0.18;
+const cheeseMats = [];
 
 function spawnCheese() {
   for (const c of cheeses) scene.remove(c);
   cheeses.length = 0;
-  // collect open cells (skip start & finish)
   const open = [];
   for (let r = 1; r < GH - 1; r++) for (let c = 1; c < GW - 1; c++)
     if (!grid[r][c] && !(r === 1 && c === 1) && !(r === GH - 2 && c === GW - 2)) open.push([r, c]);
-  // shuffle (seeded -> same cheese spots every time for this level)
   const crand = makeRNG(LEVELS[levelKey].seed + 777);
   for (let i = open.length - 1; i > 0; i--) { const j = (crand() * (i + 1)) | 0;[open[i], open[j]] = [open[j], open[i]]; }
   const count = Math.min(14, open.length);
   for (let i = 0; i < count; i++) {
     const [r, c] = open[i];
     let item;
-    if (cheeseTemplate) {                       // use the model if it's loaded
+    if (cheeseTemplate) {
       item = cheeseTemplate.clone(true);
       item.scale.setScalar(CHEESE_SCALE);
       item.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    } else {                                    // otherwise a plain cube
+    } else {
       item = new THREE.Mesh(cheeseGeo, cheeseMat);
       item.castShadow = true;
     }
@@ -399,15 +463,13 @@ function spawnCheese() {
   total = cheeses.length;
 }
 
-// load the cheese model, then rebuild the cheeses as model clones
 new GLTFLoader().load(CHEESE_URL, (g) => {
   cheeseTemplate = g.scene;
-  // brighten the cheese a touch (lighten + gentle self-glow so it pops)
   cheeseTemplate.traverse((o) => {
     if (o.isMesh && o.material) {
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       mats.forEach((m) => {
-        if (m.color) m.color.lerp(new THREE.Color(0xffffff), 0.18);   // ~18% lighter
+        if (m.color) m.color.lerp(new THREE.Color(0xffffff), 0.18);
         if ('emissive' in m) { m.emissive = m.color.clone(); m.emissiveIntensity = nightMode ? 0 : CHEESE_GLOW; }
         cheeseMats.push(m);
       });
@@ -417,19 +479,8 @@ new GLTFLoader().load(CHEESE_URL, (g) => {
 }, undefined, (e) => console.error('Cheese model failed (using cubes):', e));
 
 // ============================================================
-// 11. CUSTOM TEXTURED 3D MODEL  [RUBRIC: requires ONE textured model]
-//   The rat you DRIVE is the model: load a .glb and attach it to the
-//   moving rat group, hiding the placeholder primitive rat once it loads.
-//   (Until it loads — or if the file is missing — the primitive rat shows,
-//   so you always have something to drive.)
-//   >>> SETUP: download the rat .glb, put it next to index.html as rat.glb.
-//   Tuning knobs if it looks off:
+// 11. PLAYER RAT MODEL
 // ============================================================
-const MODEL_URL   = './rat.glb';
-const MODEL_SCALE = 1;       // size  (this model was huge at 2 — tune to taste)
-const MODEL_Y     = 0;       // raise/lower so the feet touch the ground
-const MODEL_FACE  = 0;       // turn so the NOSE points forward: try Math.PI if it
-                             // drives backwards, or ±Math.PI/2 if sideways
 new GLTFLoader().load(MODEL_URL, (gltf) => {
   const model = gltf.scene;
   model.scale.setScalar(MODEL_SCALE);
@@ -438,13 +489,12 @@ new GLTFLoader().load(MODEL_URL, (gltf) => {
   model.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = true;
-      // render both sides so thin parts (ears) aren't see-through
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       mats.forEach((m) => { if (m) m.side = THREE.DoubleSide; });
     }
   });
-  rat.children.slice().forEach((c) => { c.visible = false; });  // hide primitive rat
-  rat.add(model);                                                // attach model to mover
+  rat.children.slice().forEach((c) => { c.visible = false; });
+  rat.add(model);
 }, undefined, (e) => console.error('Model load failed (is rat.glb next to index.html?):', e));
 
 // ============================================================
@@ -459,6 +509,12 @@ function updateHUD() {
 }
 
 let dayNightOn = false, nightMode = false, minimapOn = true, followCam = true, savedCamOffset = null;
+document.getElementById('btnGhost').onclick = (e) => {
+  ghostOn = !ghostOn;
+  e.target.textContent = 'Ghost: ' + (ghostOn ? 'On' : 'Off');
+  if (!ghostOn) ghostRat.visible = false;
+  updateGhostHud();
+};
 document.getElementById('btnFollow').onclick = (e) => {
   followCam = !followCam;
   e.target.textContent = 'Follow Cam: ' + (followCam ? 'On' : 'Off');
@@ -476,26 +532,24 @@ const levelEl = document.getElementById('level');
 document.getElementById('btnNight').onclick = (e) => {
   nightMode = !nightMode;
   e.target.textContent = 'Night Mode: ' + (nightMode ? 'On' : 'Off');
-  // swap background/environment ONCE on toggle (cheap; avoids per-frame recompiles)
   if (nightMode) { scene.background = new THREE.Color(0x000000); scene.environment = null; }
   else { scene.background = skybox; scene.environment = skybox; }
-  // cheeses glow in the day but go dark at night (only seen inside your light)
   cheeseMats.forEach((m) => { m.emissiveIntensity = nightMode ? 0 : CHEESE_GLOW; });
 };
 
-// ---- difficulty levels ----
 function setLevel(key) {
   levelKey = key;
   const L = LEVELS[key];
   CW = L.cw; CH = L.ch; par = L.par;
   levelEl.textContent = `Level: ${L.label}  ·  Par: ${L.par}s`;
+  loadGhost(key);
+  updateGhostHud();
   resetRace();
 }
 document.getElementById('btnEasy').onclick   = () => { setLevel('easy');   boardEl.style.display = 'none'; };
 document.getElementById('btnMedium').onclick = () => { setLevel('medium'); boardEl.style.display = 'none'; };
 document.getElementById('btnHard').onclick   = () => { setLevel('hard');   boardEl.style.display = 'none'; };
 
-// ---- leaderboard (saved in your browser via localStorage) ----
 const LB_KEY = 'ratrace_scores_v1';
 const boardEl = document.getElementById('board');
 const boardList = document.getElementById('boardList');
@@ -526,11 +580,10 @@ saveBtn.onclick = () => {
   saveBtn.disabled = true; nameInput.disabled = true;
 };
 
-// ---- minimap (2D canvas overlay, like the previous assignment) ----
 const miniCanvas = document.getElementById('minimap');
 const mctx = miniCanvas.getContext('2d');
 const btnMinimap = document.getElementById('btnMinimap');
-function toggleMinimap() {                       // shared by button + the "M" key
+function toggleMinimap() {
   minimapOn = !minimapOn;
   miniCanvas.style.display = minimapOn ? 'block' : 'none';
   btnMinimap.textContent = 'Minimap: ' + (minimapOn ? 'On (M)' : 'Off (M)');
@@ -543,20 +596,19 @@ function drawMinimap() {
   const s = Math.min(W / GW, H / GH);
   const ox = (W - s * GW) / 2, oy = (H - s * GH) / 2;
   for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
-    mctx.fillStyle = grid[r][c] ? '#3a2f25' : '#2e7d32';       // wall : path
+    mctx.fillStyle = grid[r][c] ? '#3a2f25' : '#2e7d32';
     mctx.fillRect(ox + c * s, oy + r * s, s + 0.5, s + 0.5);
   }
-  const gateOpen = total > 0 && collected >= total;            // finish square
+  const gateOpen = total > 0 && collected >= total;
   mctx.fillStyle = gateOpen ? '#33ff88' : '#ff5555';
   mctx.fillRect(ox + toCol(finishPos.x) * s, oy + toRow(finishPos.z) * s, s, s);
-  mctx.fillStyle = '#ffd21e';                                   // cheese dots
+  mctx.fillStyle = '#ffd21e';
   for (const c of cheeses) {
     mctx.beginPath();
     mctx.arc(ox + (c.position.x / CELL + (GW - 1) / 2) * s, oy + (c.position.z / CELL + (GH - 1) / 2) * s,
              Math.max(1.5, s * 0.3), 0, Math.PI * 2);
     mctx.fill();
   }
-  // rat as a heading arrow
   const rx = ox + (rat.position.x / CELL + (GW - 1) / 2) * s;
   const ry = oy + (rat.position.z / CELL + (GH - 1) / 2) * s;
   mctx.save(); mctx.translate(rx, ry); mctx.rotate(Math.PI - yaw);
@@ -570,7 +622,7 @@ function drawMinimap() {
 // ============================================================
 const keys = {};
 window.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') return;         // don't drive while typing a name
+  if (e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
   keys[k] = true;
   if (k === '1') { setLevel('easy');   boardEl.style.display = 'none'; }
@@ -589,13 +641,15 @@ function resetRace() {
   rat.rotation.y = Math.PI / 2;
   speed = 0; yaw = Math.PI / 2;
   collected = 0; raceTime = 0; finished = false; started = false;
+  currentRun = [];
+  ghostRat.visible = false;
   winEl.style.display = 'none';
   lastRat.copy(rat.position);
-  // place camera behind the start
   camera.position.set(startPos.x, 18, startPos.z + 22);
   controls.target.set(startPos.x, 1.5, startPos.z);
   controls.update();
   updateHUD();
+  updateGhostHud();
 }
 
 // ============================================================
@@ -611,19 +665,19 @@ window.addEventListener('resize', () => {
 // 16. LOOP
 // ============================================================
 const clock = new THREE.Clock();
-let sunAngle = Math.PI / 2.3;                 // near noon (bright) by default
+let sunAngle = Math.PI / 2.3;
 const dayFog = new THREE.Color(0x9bc4e2), nightFog = new THREE.Color(0x0a0f25), tmpC = new THREE.Color();
 let speed = 0, yaw = 0;
 let lastRat = new THREE.Vector3();
 const fwd = new THREE.Vector3();
 
-resetRace();   // build first maze & place everything
+loadGhost(levelKey);
+resetRace();
 
 function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.getElapsedTime();
 
-  // ---------- steering controls ----------
   const accel = 42, friction = 20, turnRate = 2.6;
   const maxSpeed = 15;
   if (keys['w'] || keys['arrowup'])   speed += accel * dt;
@@ -635,23 +689,23 @@ function animate() {
     const turn = (keys['a'] || keys['arrowleft'] ? 1 : 0) - (keys['d'] || keys['arrowright'] ? 1 : 0);
     yaw += turn * turnRate * dt * Math.sign(speed === 0 ? 1 : speed);
   } else {
-    // allow slow turning in place for maze maneuvering
     yaw += ((keys['a'] || keys['arrowleft'] ? 1 : 0) - (keys['d'] || keys['arrowright'] ? 1 : 0)) * turnRate * 0.6 * dt;
   }
   rat.rotation.y = yaw;
 
-  // ---------- move with wall collision (per-axis sliding) ----------
   fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
   const dx = fwd.x * speed * dt, dz = fwd.z * speed * dt;
   if (!blocked(rat.position.x + dx, rat.position.z)) rat.position.x += dx; else speed *= 0.9;
   if (!blocked(rat.position.x, rat.position.z + dz)) rat.position.z += dz; else speed *= 0.9;
   rat.position.y = 0.9 + (Math.abs(speed) > 0.5 ? Math.abs(Math.sin(t * 14)) * 0.12 : 0);
-  
-  // start the timer on first movement
+
   if (!started && Math.abs(speed) > 0.5) started = true;
   if (started && !finished) { raceTime += dt; }
+  if (ghostOn && started && !finished) {
+    currentRun.push({ t: raceTime, x: rat.position.x, z: rat.position.z, yaw });
+  }
+  if (ghostOn && started) tickGhost(raceTime);
 
-  // ---------- follow camera ----------
   if (followCam) {
     const camDist = 14, camHeight = 10;
     const camX = rat.position.x - Math.sin(yaw) * camDist;
@@ -672,11 +726,9 @@ function animate() {
   controls.target.set(rat.position.x, 1.5, rat.position.z);
   lastRat.copy(rat.position);
 
-  // ---------- spotlight tracks rat ----------
   spot.position.set(rat.position.x, 16, rat.position.z);
   spot.target.position.copy(rat.position);
 
-  // ---------- cheese pickup ----------
   for (let i = cheeses.length - 1; i >= 0; i--) {
     const c = cheeses[i];
     c.rotation.y += dt * 1.6;
@@ -686,7 +738,6 @@ function animate() {
     }
   }
 
-  // ---------- finish check (gate is LOCKED until all cheese collected) ----------
   const gateOpen = total > 0 && collected >= total;
   if (finishGate) {
     finishGate.rotation.z += dt * 1.2;
@@ -697,11 +748,22 @@ function animate() {
   gateHint.style.display = (nearGate && !gateOpen && !finished) ? 'block' : 'none';
   if (!finished && nearGate && gateOpen) {
     finished = true;
+    ghostRat.visible = false;
     gateHint.style.display = 'none';
+    if (ghostOn && currentRun.length > 0) {
+      if (ghostBestTime === null || raceTime < ghostBestTime) {
+        ghostBestTime = raceTime;
+        ghostRecording = currentRun.slice();
+        saveGhost(levelKey, ghostBestTime, ghostRecording);
+      }
+    }
+    updateGhostHud();
     const beat = raceTime <= par;
+    const newBest = ghostBestTime !== null && raceTime === ghostBestTime;
     document.getElementById('winMsg').innerHTML =
       `🏁 Finished!<br><span style="font-size:15px">${LEVELS[levelKey].label} &nbsp;·&nbsp; Time: ${raceTime.toFixed(1)}s &nbsp;·&nbsp; Par: ${par}s<br>` +
-      (beat ? '🎉 You beat the par time!' : '⏱ Just over par — try again!') + '</span>';
+      (newBest ? 'NEW BEST TIME OMG!! Ghost updated. ' : '') +
+      (beat ? 'You beat the par time!' : '⏱ Just over par — try again!') + '</span>';
     nameInput.value = ''; nameInput.disabled = false; saveBtn.disabled = false; saveMsg.textContent = '';
     winEl.style.display = 'block';
   }
@@ -709,16 +771,13 @@ function animate() {
   updateHUD();
   if (minimapOn) drawMinimap();
 
-  // ---------- lighting: Night Mode (flashlight) OR day/night ----------
   if (nightMode) {
-    // Pitch-black world; the light on the rat is the only source.
-    // --- TUNE: spot.angle = circle SIZE/radius, spot.intensity = BRIGHTNESS ---
     sun.intensity = 0; ambient.intensity = 0.05; hemi.intensity = 0.03;
-    spot.angle = Math.PI / 10; spot.penumbra = 0.4;  // smaller angle = tighter circle
-    spot.intensity = 420;                            // lower = dimmer
+    spot.angle = Math.PI / 10; spot.penumbra = 0.4;
+    spot.intensity = 420;
     pointLamp.color.set(0xffe2b0);
-    pointLamp.intensity = 18;                        // warm glow on the rat
-    pointLamp.distance = 14;                          // how far that glow reaches
+    pointLamp.intensity = 18;
+    pointLamp.distance = 14;
     pointLamp.position.set(rat.position.x, 3, rat.position.z);
     scene.fog.color.set(0x000000); scene.fog.near = 6; scene.fog.far = 30;
   } else {
